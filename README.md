@@ -1,0 +1,122 @@
+# Дневник Второй Мировой — ежедневная рутина
+
+Автопостинг для Telegram-канала [@ww2_dnevnik](https://t.me/ww2_dnevnik):
+каждый день — что происходило во Второй мировой ровно **85 лет назад**, с
+архивной фотографией. Раньше это крутилось на make.com; теперь — как **ежедневная
+облачная рутина Claude** (Opus 4.8, максимальный effort), которая работает в
+облаке независимо от того, включён ли твой компьютер.
+
+## Что делает
+
+1. Считает целевую дату: сегодня минус 85 лет (по Москве).
+2. Собирает факты из нескольких источников:
+   - [onwar.com](https://www.onwar.com/) — хроника по дням;
+   - [ww2db.com](https://ww2db.com/) — «today in WW2 history»;
+   - [ru.wikipedia «Хроника Великой Отечественной войны»](https://ru.wikipedia.org/wiki/Хроника_Великой_Отечественной_войны)
+     — по дням, упор на Восточный фронт;
+   - [en.wikipedia «Timeline of World War II»](https://en.wikipedia.org/wiki/Timeline_of_World_War_II_(1941)).
+3. Claude (сама сессия рутины) пишет пост, подпись к фото и короткий текст для X.
+4. Ищет фото на Wikimedia Commons, отсекает уже использованные и послевоенные,
+   **смотрит на кадры** и выбирает лучший.
+5. Публикует в Telegram (и опционально в X), сохраняет историю в репозиторий —
+   чтобы не повторялись ни темы, ни фотографии.
+
+## Архитектура
+
+| Часть | Где |
+|---|---|
+| Творчество (текст, выбор фото) | Сама сессия Claude по навыку `.claude/skills/daily-post/` |
+| Сбор фактов | `scripts/fetch_sources.py` → `ww2daily/sources.py` |
+| Поиск/дедуп фото | `scripts/find_photo.py` → `ww2daily/commons.py` |
+| Публикация | `scripts/publish.py` → `ww2daily/telegram.py`, `ww2daily/twitter.py` |
+| Память (антиповторы) | `state/history.json` (коммитится обратно) |
+
+Внешние сервисы из make-сценария (OpenAI, Buffer, Dropbox, Cloudinary, E2B,
+Airtable) больше **не нужны**: модель — это сама рутина, фото хостит Telegram,
+память — в git.
+
+## Настройка рутины (один раз)
+
+1. Зайди на **[claude.ai/code](https://claude.ai/code)** → раздел Routines →
+   **Create routine**.
+2. **Repository:** выбери `maksimveretennikov/ww2-daily`.
+3. **Model:** Opus 4.8, уровень рассуждений — максимальный.
+4. **Schedule:** Daily, время по Москве (например 09:00 — поменяй на нужное;
+   время вводится в твоём часовом поясе и конвертируется автоматически).
+5. **Prompt рутины** — короткий, вся логика в репозитории:
+   > Запусти навык `daily-post` и выпусти сегодняшний пост для канала
+   > @ww2_dnevnik, строго следуя инструкции навыка. Работай автономно.
+6. **Environment → Environment variables** (формат `.env`, без кавычек) —
+   см. `.env.example`. Минимум:
+   ```
+   TELEGRAM_BOT_TOKEN=...        # бот должен быть админом канала
+   TELEGRAM_CHANNEL=@ww2_dnevnik
+   ```
+7. **Environment → Network access → Custom.** Добавь домены (и оставь галочку
+   «common package managers», чтобы ставился pip):
+   ```
+   api.telegram.org
+   commons.wikimedia.org
+   upload.wikimedia.org
+   ru.wikipedia.org
+   en.wikipedia.org
+   www.onwar.com
+   ww2db.com
+   ```
+   (Добавь `api.x.com` и `upload.twitter.com`, если включишь X.)
+8. **Право на push в `main`.** Рутина по умолчанию пушит только в ветки
+   `claude/*`. Чтобы память (`state/history.json`) накапливалась, разреши push в
+   основную ветку — либо в настройках рутины, либо принимай ежедневный PR от неё.
+   Если оставляешь только `claude/*` — память будет уходить в PR, который нужно
+   мёржить (менее удобно).
+
+### Что нужно от тебя (доступы)
+
+- **`TELEGRAM_BOT_TOKEN`** — токен бота от @BotFather (тот же бот, что постит
+  сейчас). Бот должен быть **админом** `@ww2_dnevnik` с правом публикации.
+- *(опционально, позже)* ключи **X API** — см. ниже.
+
+`ANTHROPIC_API_KEY` **не нужен**: пост пишет сама сессия рутины (это и есть
+Opus 4.8). OpenAI/Buffer/Dropbox/Cloudinary — тоже не нужны.
+
+## Локальный тест (без реальной публикации)
+
+```bash
+pip install -r requirements.txt
+export DRY_RUN=1
+python scripts/fetch_sources.py          # соберёт факты в run/facts.json
+python scripts/find_photo.py --image-prompt "Operation Barbarossa 1941"
+# напиши run/draft.json вручную для проверки
+python scripts/publish.py                # в DRY_RUN только печатает
+```
+
+## X (Twitter) — опционально, позже
+
+По умолчанию выключено (`X_ENABLED=0`). Факт на 2026 год: бесплатный tier X API
+свёрнут, но это **pay-per-use ≈ $0.01 за пост** (~$0.30/мес при одном посте в
+день) + стартовый кредит $10 — то есть практически бесплатно. Чтобы включить:
+
+1. На [developer.x.com](https://developer.x.com/) создай app с правами
+   **Read and Write**, возьми 5 значений (см. `.env.example`).
+2. В env рутины: `X_ENABLED=1` и пять ключей `X_*`.
+3. Добавь `tweepy` в окружение (раскомментируй в `requirements.txt`).
+4. Добавь домены X в network allowlist.
+
+Альтернатива — оставить Buffer (бесплатно, но его API для новых приложений
+капризен в автоматизации). Скажи, если предпочитаешь Buffer, — добавлю модуль.
+
+## Структура
+
+```
+ww2daily/            пакет с логикой (даты, источники, Commons, Telegram, X, state)
+scripts/             шаги рутины: fetch_sources / find_photo / publish
+.claude/skills/      навык daily-post — процедура и правила написания поста
+state/history.json   память канала (антиповторы тем и фото)
+run/                 рабочие файлы запуска (в .gitignore)
+```
+
+## Дальнейшие планы
+
+- Перенести опросы (Airtable → рутина), затем — новые рубрики.
+- Разовый импорт прошлой истории постов/фото из Airtable в `state/history.json`,
+  чтобы антиповторы учитывали весь прошлый год.
