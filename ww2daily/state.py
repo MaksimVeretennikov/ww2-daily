@@ -104,6 +104,42 @@ def recent_by_kind(kind: str, n: int = 12, data: dict | None = None) -> list:
     return by_kind(kind, data)[-n:]
 
 
+# --- polls -------------------------------------------------------------------
+
+def load_polls() -> dict:
+    path = config.POLLS_PATH
+    if not os.path.exists(path):
+        return {"polls": []}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        data.setdefault("polls", [])
+        return data
+    except Exception:
+        return {"polls": []}
+
+
+def save_polls(data: dict) -> None:
+    path = config.POLLS_PATH
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+
+
+def recent_polls(n: int | None = None, data: dict | None = None) -> list:
+    data = data or load_polls()
+    n = n or config.POLL_HISTORY_CONTEXT
+    return data.get("polls", [])[-n:]
+
+
+def append_poll(record: dict, data: dict | None = None) -> dict:
+    data = data or load_polls()
+    data.setdefault("polls", []).append(record)
+    save_polls(data)
+    return data
+
+
 def posts_in_ww2_window(start_iso: str, end_iso: str,
                         data: dict | None = None) -> list:
     """Posts whose ww2_date falls within [start_iso, end_iso] inclusive."""

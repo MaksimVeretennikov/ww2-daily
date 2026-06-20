@@ -26,6 +26,15 @@ TG_CAPTION_HARD_CAP = 1024     # Telegram limit for a photo caption
 
 X_POST_TARGET = 260            # english short post for X
 
+# --- Poll (Telegram quiz) ----------------------------------------------------
+
+# Telegram sendPoll limits (quiz mode). We validate against these before posting.
+POLL_QUESTION_MAX = 300
+POLL_OPTION_MAX = 100
+POLL_EXPLANATION_MAX = 200
+# How many recent polls to show the model so it doesn't repeat itself.
+POLL_HISTORY_CONTEXT = 40
+
 # --- Photo selection ---------------------------------------------------------
 
 # Reject images whose original date is clearly post-war (keeps archival look).
@@ -41,6 +50,8 @@ HISTORY_CONTEXT_POSTS = 30
 
 # Path to the persistent state file (relative to repo root).
 STATE_PATH = os.environ.get("STATE_PATH", "state/history.json")
+# Poll history lives in its own file so it doesn't bloat the post history.
+POLLS_PATH = os.environ.get("POLLS_PATH", "state/polls.json")
 
 # --- Flags -------------------------------------------------------------------
 

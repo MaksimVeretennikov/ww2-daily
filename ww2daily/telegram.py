@@ -63,3 +63,52 @@ def send_message(text: str, channel: str | None = None) -> dict:
     if not payload.get("ok"):
         raise RuntimeError(f"Telegram error: {payload}")
     return payload
+
+
+def send_poll(question: str, options: list[str], correct_option_id: int,
+              explanation: str | None = None, channel: str | None = None,
+              is_anonymous: bool = True) -> dict:
+    """Send a quiz-mode poll (one correct answer + explanation)."""
+    import json as _json
+
+    channel = channel or config.TELEGRAM_CHANNEL
+    if len(question) > config.POLL_QUESTION_MAX:
+        raise ValueError(f"Poll question is {len(question)} chars, over "
+                         f"{config.POLL_QUESTION_MAX}.")
+    if not 2 <= len(options) <= 10:
+        raise ValueError("A poll needs between 2 and 10 options.")
+    for o in options:
+        if len(o) > config.POLL_OPTION_MAX:
+            raise ValueError(f"Option '{o[:30]}…' is {len(o)} chars, over "
+                             f"{config.POLL_OPTION_MAX}.")
+    if explanation and len(explanation) > config.POLL_EXPLANATION_MAX:
+        raise ValueError(f"Explanation is {len(explanation)} chars, over "
+                         f"{config.POLL_EXPLANATION_MAX}.")
+    if not 0 <= correct_option_id < len(options):
+        raise ValueError("correct_option_id is out of range.")
+
+    if config.DRY_RUN:
+        print(f"[DRY_RUN] sendPoll(quiz) -> {channel}\nQ: {question}")
+        for i, o in enumerate(options):
+            print(f"  {'*' if i == correct_option_id else ' '} {o}")
+        print(f"explanation: {explanation}")
+        return {"ok": True, "dry_run": True}
+
+    data = {
+        "chat_id": channel,
+        "question": question,
+        # Bot API 7.0+ expects InputPollOption objects.
+        "options": _json.dumps([{"text": o} for o in options], ensure_ascii=False),
+        "type": "quiz",
+        "correct_option_id": correct_option_id,
+        "is_anonymous": is_anonymous,
+    }
+    if explanation:
+        data["explanation"] = explanation
+    resp = http.session().post(_api("sendPoll"), data=data,
+                               timeout=config.HTTP_TIMEOUT)
+    resp.raise_for_status()
+    payload = resp.json()
+    if not payload.get("ok"):
+        raise RuntimeError(f"Telegram error: {payload}")
+    return payload

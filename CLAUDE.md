@@ -42,6 +42,17 @@ Every record carries a `kind` (`daily`/`document`/`weapon`/`perspectives`/`photo
 powering cross-rubric de-duplication. Photo de-dup is by Commons `image_pageid`
 across all kinds. `publish.py` refuses to post the same `kind` twice in one day.
 
+## Daily poll
+
+A third routine at 15:00 runs the `daily-poll` skill: one Telegram quiz-mode poll
+(single correct answer + explanation) about the period the channel is currently
+in. `scripts/poll_context.py` supplies the date, recent posts (~2 weeks) and
+recent poll questions; `scripts/publish_poll.py` posts it, shuffles option order
+so the answer's position is random, warns if the correct option is the longest
+(the classic tell), and records it. Poll memory is `state/polls.json` (seeded once
+from Airtable via `scripts/import_polls.py`). The diary "no looking ahead" rule
+applies to polls too.
+
 ## Conventions
 
 - Python 3.11+. Dependencies in `requirements.txt` (kept minimal: `requests`,
