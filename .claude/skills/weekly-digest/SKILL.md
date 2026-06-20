@@ -55,7 +55,7 @@ python scripts/find_photo.py --image-prompt "<image_prompt>" --category-prompt "
   "topic": "weekly digest {window.start}..{window.end}",
   "image_index": 0,
   "telegram_caption": "<i>{photo_caption}</i>\n\n<b>Итоги недели: …</b>\n\n{post}…",
-  "post_x": ""
+  "post_x": "<= 260, английский, итог недели одной фразой, с дат; без ссылок/эмодзи>"
 }
 ```
 Проверь длину `telegram_caption` ≤ 1024 (при фото — это подпись; если текст не

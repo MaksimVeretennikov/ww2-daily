@@ -65,6 +65,10 @@ X_ENABLED = _flag("X_ENABLED")
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
+# X cross-post via the user's Buffer, through a tiny make.com webhook
+# (Webhook -> Buffer Create Status with media). Empty = disabled.
+BUFFER_WEBHOOK_URL = os.environ.get("BUFFER_WEBHOOK_URL", "")
+
 X_CREDENTIALS = {
     "api_key": os.environ.get("X_API_KEY", ""),
     "api_secret": os.environ.get("X_API_SECRET", ""),

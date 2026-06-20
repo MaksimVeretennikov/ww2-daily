@@ -45,7 +45,7 @@ python scripts/find_photo.py --image-prompt "<image_prompt>" --category-prompt "
 { "kind": "weapon", "subject": "Т-34", "ww2_date": "<facts.date.iso>",
   "topic": "<кратко по-английски>", "image_index": 0,
   "telegram_caption": "<i>{photo_caption}</i>\n\n<b>{название}</b>\n\n{post}…",
-  "post_x": "" }
+  "post_x": "<= 260, английский, та же тема, с даты (June D, 1941 —); без ссылок/эмодзи>" }
 ```
 Длину ≤ 1024. Затем `python scripts/publish.py`.
 

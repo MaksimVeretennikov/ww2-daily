@@ -55,7 +55,7 @@ python scripts/find_photo.py --image-prompt "<image_prompt>" --category-prompt "
   "topic": "<кратко по-английски, для антиповторов>",
   "image_index": 0,
   "telegram_caption": "<i>{photo_caption}</i>\n\n<b>Имя Фамилия</b>\n\n{post}…",
-  "post_x": ""
+  "post_x": "<= 260 символов, английский, та же тема, начни с даты (June D, 1941 —); без ссылок/эмодзи>"
 }
 ```
 Проверь длину `telegram_caption` ≤ 1024. Затем:

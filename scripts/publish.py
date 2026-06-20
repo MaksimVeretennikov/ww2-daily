@@ -22,7 +22,7 @@ import json
 import os
 
 import _bootstrap  # noqa: F401
-from ww2daily import commons, config, state, telegram, twitter
+from ww2daily import buffer, commons, config, state, telegram, twitter
 
 DRAFT = os.path.join(_bootstrap.RUN_DIR, "draft.json")
 CAND_JSON = os.path.join(_bootstrap.RUN_DIR, "candidates.json")
@@ -79,9 +79,15 @@ def main() -> None:
     else:
         telegram.send_message(caption)  # text-only fallback
 
+    # --- cross-post to X: prefer Buffer webhook (with the Commons image URL),
+    # otherwise the X API directly; both are no-ops unless configured. ---
     x_result = {"skipped": "no_text"}
     if draft.get("post_x"):
-        x_result = twitter.post(draft["post_x"], image_path)
+        image_url = chosen.get("image_url") if chosen else None
+        if buffer.is_enabled():
+            x_result = buffer.post(draft["post_x"], image_url)
+        else:
+            x_result = twitter.post(draft["post_x"], image_path)
 
     # --- remember ---
     record = {
