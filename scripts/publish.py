@@ -22,7 +22,7 @@ import json
 import os
 
 import _bootstrap  # noqa: F401
-from ww2daily import buffer, commons, config, state, telegram, twitter
+from ww2daily import buffer, commons, config, state, telegram, twitter, vk
 
 DRAFT = os.path.join(_bootstrap.RUN_DIR, "draft.json")
 CAND_JSON = os.path.join(_bootstrap.RUN_DIR, "candidates.json")
@@ -91,6 +91,9 @@ def main() -> None:
         else:
             x_result = twitter.post(draft["post_x"], image_path)
 
+    # --- cross-post to VK community (Russian text + the same photo file) ---
+    vk_result = vk.post(caption, image_path) if vk.is_enabled() else {"skipped": "vk_disabled"}
+
     # --- remember ---
     record = {
         "date_posted": datetime.date.today().isoformat(),
@@ -112,6 +115,7 @@ def main() -> None:
 
     print("Telegram caption length:", len(caption))
     print("X result:", x_result)
+    print("VK result:", vk_result)
 
 
 if __name__ == "__main__":

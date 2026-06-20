@@ -69,6 +69,13 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 # (Webhook -> Buffer Create Status with media). Empty = disabled.
 BUFFER_WEBHOOK_URL = os.environ.get("BUFFER_WEBHOOK_URL", "")
 
+# VK cross-post to a community you own. Needs a USER access token with scopes
+# wall,photos,groups,offline (community tokens can't upload wall photos).
+VK_ACCESS_TOKEN = os.environ.get("VK_ACCESS_TOKEN", "")
+VK_GROUP_ID = os.environ.get("VK_GROUP_ID", "")   # numeric community id (positive)
+VK_FOOTER = os.environ.get("VK_FOOTER", "")        # e.g. a link back to Telegram
+VK_API_VERSION = "5.199"
+
 X_CREDENTIALS = {
     "api_key": os.environ.get("X_API_KEY", ""),
     "api_secret": os.environ.get("X_API_SECRET", ""),
