@@ -89,6 +89,17 @@ def featured_subjects(kind: str, data: dict | None = None) -> set:
     return {p.get("subject") for p in by_kind(kind, data) if p.get("subject")}
 
 
+def featured_by_kind(data: dict | None = None) -> dict:
+    """All covered subjects grouped by kind, e.g. {"person": [...], "weapon": [...]}."""
+    data = data or load()
+    out: dict[str, set] = {}
+    for p in data.get("posts", []):
+        subj = p.get("subject")
+        if subj:
+            out.setdefault(kind_of(p), set()).add(subj)
+    return {k: sorted(v) for k, v in out.items()}
+
+
 def recent_by_kind(kind: str, n: int = 12, data: dict | None = None) -> list:
     return by_kind(kind, data)[-n:]
 

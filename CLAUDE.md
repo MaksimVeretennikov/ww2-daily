@@ -23,17 +23,24 @@ in the skill — follow it when running the routine.
 
 ## Rubrics
 
-Besides the daily post there are weekly rubrics, each its own routine and skill,
-sharing this repo and `state/history.json`:
+Besides the morning daily post (09:00) there is an evening rubric every day at
+20:00, run by a single second routine. Its skill `rubric-today` reads
+`scripts/which_rubric.py` to pick today's rubric by Moscow weekday, then follows
+the matching rubric skill. All share this repo and `state/history.json`:
 
-- `rubric-person` («Личность») — portrait of a person tied to the period (Tue, Sat);
-- `rubric-photo` («Кадр недели») — one strong archival photo with its story (Thu);
-- `weekly-digest` («Итог недели») — recap of the week, built from the week's posted
-  history plus `scripts/fetch_week.py` (Sun).
+- Mon `rubric-document` («Документ / Дневник») — a real order / communiqué / diary entry;
+- Tue `rubric-weapon` («Оружие / Техника») — a recognizable tank/plane/ship/gun;
+- Wed `rubric-perspectives` («Двумя глазами») — one event from Soviet and German sources;
+- Thu `rubric-photo` («Кадр недели») — one strong archival photo with its story;
+- Fri `rubric-numbers` («В цифрах») — one reliable striking statistic;
+- Sat `rubric-person` («Личность») — portrait of a recognizable person of the period;
+- Sun `weekly-digest` («Итог недели») — recap built from the week's posted history
+  plus `scripts/fetch_week.py`.
 
-Every published record carries a `kind` (`daily`/`person`/`photo`/`weekly`) and an
-optional `subject` (e.g. the person's name), which power cross-rubric
-de-duplication. Photo de-dup is by Commons `image_pageid` across all kinds.
+Every record carries a `kind` (`daily`/`document`/`weapon`/`perspectives`/`photo`/
+`numbers`/`person`/`weekly`) and an optional `subject` (person or weapon name),
+powering cross-rubric de-duplication. Photo de-dup is by Commons `image_pageid`
+across all kinds. `publish.py` refuses to post the same `kind` twice in one day.
 
 ## Conventions
 

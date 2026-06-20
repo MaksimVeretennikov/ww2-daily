@@ -28,6 +28,7 @@ def main() -> None:
         "used_pageids": sorted(state.used_pageids(hist)),
         "recent_posts": state.recent(data=hist),
         "featured_people": sorted(state.featured_subjects("person", hist)),
+        "featured": state.featured_by_kind(hist),
     }
     with open(FACTS_PATH, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, indent=2)
