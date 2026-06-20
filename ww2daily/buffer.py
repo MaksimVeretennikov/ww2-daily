@@ -11,7 +11,22 @@ This module just POSTs {"text": ..., "image_url": ...} to that webhook. The imag
 is a public Wikimedia Commons URL, so no extra hosting is needed.
 """
 
+from urllib.parse import quote
+
 from . import config, http
+
+
+def _image_proxy(url: str) -> str:
+    """Re-serve the image through the free wsrv.nl CDN.
+
+    Buffer fetches the image URL itself, and Wikimedia blocks Buffer's fetcher
+    (hence "image not valid"). wsrv.nl downloads the source server-side and
+    serves Buffer a clean JPEG from its own CDN — no Dropbox/hosting needed.
+    """
+    if not url:
+        return url
+    bare = url.split("://", 1)[-1]  # wsrv adds the scheme itself
+    return f"https://wsrv.nl/?url={quote(bare, safe='')}&output=jpg&w=1600"
 
 
 def is_enabled() -> bool:
@@ -24,7 +39,7 @@ def post(text: str, image_url: str | None = None) -> dict:
     if not text:
         return {"ok": False, "skipped": "no_text"}
 
-    payload = {"text": text, "image_url": image_url or ""}
+    payload = {"text": text, "image_url": _image_proxy(image_url) if image_url else ""}
     if config.DRY_RUN:
         print(f"[DRY_RUN] Buffer webhook -> {config.BUFFER_WEBHOOK_URL}\n{payload}")
         return {"ok": True, "dry_run": True}
