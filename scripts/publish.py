@@ -37,11 +37,26 @@ def _load(path: str) -> dict | list:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--draft", default=DRAFT)
+    ap.add_argument("--force", action="store_true",
+                    help="post even if a record of this kind already exists today")
     args = ap.parse_args()
 
     draft = _load(args.draft)
     caption = draft["telegram_caption"].strip()
     idx = draft.get("image_index", -1)
+    kind = draft.get("kind", "daily")
+
+    # Idempotency guard: never publish the same kind twice on the same calendar
+    # day (protects against a manual run colliding with the scheduled one).
+    today = datetime.date.today().isoformat()
+    already = [p for p in state.load().get("posts", [])
+               if p.get("date_posted") == today and state.kind_of(p) == kind]
+    if already and not args.force:
+        raise SystemExit(
+            f"A '{kind}' post already exists for {today} "
+            f"(subject: {already[-1].get('subject') or already[-1].get('topic')}). "
+            f"Skipping to avoid a duplicate. Re-run with --force to override."
+        )
 
     chosen = None
     image_path = None
