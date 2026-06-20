@@ -70,3 +70,37 @@ def append(record: dict, data: dict | None = None) -> dict:
     data.setdefault("posts", []).append(record)
     save(data)
     return data
+
+
+# --- rubric helpers ----------------------------------------------------------
+
+def kind_of(post: dict) -> str:
+    """Post type; legacy posts without the field are daily posts."""
+    return post.get("kind") or "daily"
+
+
+def by_kind(kind: str, data: dict | None = None) -> list:
+    data = data or load()
+    return [p for p in data.get("posts", []) if kind_of(p) == kind]
+
+
+def featured_subjects(kind: str, data: dict | None = None) -> set:
+    """Subjects already covered by a rubric (e.g. people for «Личность»)."""
+    return {p.get("subject") for p in by_kind(kind, data) if p.get("subject")}
+
+
+def recent_by_kind(kind: str, n: int = 12, data: dict | None = None) -> list:
+    return by_kind(kind, data)[-n:]
+
+
+def posts_in_ww2_window(start_iso: str, end_iso: str,
+                        data: dict | None = None) -> list:
+    """Posts whose ww2_date falls within [start_iso, end_iso] inclusive."""
+    data = data or load()
+    out = []
+    for p in data.get("posts", []):
+        d = p.get("ww2_date")
+        if d and start_iso <= d <= end_iso:
+            out.append(p)
+    return out
+

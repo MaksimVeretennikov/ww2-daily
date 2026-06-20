@@ -21,6 +21,20 @@ Deterministic plumbing lives in the `ww2daily/` package; judgement (writing,
 photo choice) is the model's. The full daily procedure and the writing rules are
 in the skill — follow it when running the routine.
 
+## Rubrics
+
+Besides the daily post there are weekly rubrics, each its own routine and skill,
+sharing this repo and `state/history.json`:
+
+- `rubric-person` («Личность») — portrait of a person tied to the period (Tue, Sat);
+- `rubric-photo` («Кадр недели») — one strong archival photo with its story (Thu);
+- `weekly-digest` («Итог недели») — recap of the week, built from the week's posted
+  history plus `scripts/fetch_week.py` (Sun).
+
+Every published record carries a `kind` (`daily`/`person`/`photo`/`weekly`) and an
+optional `subject` (e.g. the person's name), which power cross-rubric
+de-duplication. Photo de-dup is by Commons `image_pageid` across all kinds.
+
 ## Conventions
 
 - Python 3.11+. Dependencies in `requirements.txt` (kept minimal: `requests`,

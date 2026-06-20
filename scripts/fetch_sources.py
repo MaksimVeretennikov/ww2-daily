@@ -27,6 +27,7 @@ def main() -> None:
         "history_digest": state.context_digest(data=hist),
         "used_pageids": sorted(state.used_pageids(hist)),
         "recent_posts": state.recent(data=hist),
+        "featured_people": sorted(state.featured_subjects("person", hist)),
     }
     with open(FACTS_PATH, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, indent=2)

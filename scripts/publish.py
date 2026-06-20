@@ -71,6 +71,8 @@ def main() -> None:
     # --- remember ---
     record = {
         "date_posted": datetime.date.today().isoformat(),
+        "kind": draft.get("kind", "daily"),
+        "subject": draft.get("subject"),
         "ww2_date": draft.get("ww2_date"),
         "topic": draft.get("topic"),
         "telegram_caption": caption,
