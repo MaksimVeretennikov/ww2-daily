@@ -83,7 +83,9 @@ def main() -> None:
     # otherwise the X API directly; both are no-ops unless configured. ---
     x_result = {"skipped": "no_text"}
     if draft.get("post_x"):
-        image_url = chosen.get("image_url") if chosen else None
+        # Prefer the 1200px thumbnail for X (full Commons originals can exceed
+        # the platform's image size limit).
+        image_url = (chosen.get("thumb_url") or chosen.get("image_url")) if chosen else None
         if buffer.is_enabled():
             x_result = buffer.post(draft["post_x"], image_url)
         else:
