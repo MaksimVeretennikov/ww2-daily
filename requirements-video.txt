@@ -1,0 +1,6 @@
+# Heavy deps used ONLY by the short-video generator (the video-clip skill installs
+# these on demand, so the daily/poll/rubric routines stay lightweight).
+moviepy>=2.0
+imageio-ffmpeg>=0.5
+Pillow>=10.0
+edge-tts>=6.1
