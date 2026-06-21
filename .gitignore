@@ -7,3 +7,6 @@ venv/
 # Working artifacts produced during a run (facts dump, candidate images, draft).
 /run/
 *.tmp
+
+# moviepy intermediate render files (written next to cwd during build)
+*TEMP_MPY_*
