@@ -34,9 +34,9 @@ W, H = 1080, 1920
 FPS = 30
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FALLBACK_LINE = 2.2              # per line when no narration audio
-LEAD_IN = 0.12                   # silence before first line
-GAP = 0.10                       # silence between lines
-TAIL = 0.30                      # silence after last line
+LEAD_IN = 0.08                   # silence before first line
+GAP = 0.04                       # short silence between lines (snappy pacing)
+TAIL = 0.20                      # silence after last line
 SUB_Y = 0.58                     # subtitle centre, fraction of height (lower-centre)
 VOICES = {"ru": "ru-RU-DmitryNeural", "en": "en-US-GuyNeural"}
 RATE = {"ru": "+20%", "en": "+16%"}   # brisk delivery
@@ -163,26 +163,29 @@ def _wrap(draw, text, font, max_w):
 
 
 def _subtitle(text: str, start: float, dur: float, idx: int, tmp: str):
-    """Lower-centre subtitle on a soft translucent pill, popping in with a
-    small scale-up. Rendered with Pillow for full control over the look."""
-    font = ImageFont.truetype(FONT, 56)
+    """Lower-centre subtitle: clean white text with a strong outline and a soft
+    drop shadow (no background box), popping in with a small scale-up."""
+    font = ImageFont.truetype(FONT, 58)
     probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
-    lines = _wrap(probe, text, font, int(W * 0.76))
+    lines = _wrap(probe, text, font, int(W * 0.84))
     asc, desc = font.getmetrics()
-    lh, spacing, pad_x, pad_y = asc + desc, 10, 34, 22
+    lh, spacing, stroke, pad = asc + desc, 8, 4, 26
     text_w = max(int(probe.textlength(l, font=font)) for l in lines)
-    box_w = text_w + 2 * pad_x
-    box_h = lh * len(lines) + spacing * (len(lines) - 1) + 2 * pad_y
+    cw = text_w + 2 * pad
+    ch = lh * len(lines) + spacing * (len(lines) - 1) + 2 * pad
 
-    img = Image.new("RGBA", (box_w, box_h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, box_w - 1, box_h - 1], radius=26, fill=(0, 0, 0, 120))
-    y = pad_y
-    for l in lines:
-        x = (box_w - probe.textlength(l, font=font)) / 2
-        d.text((x, y), l, font=font, fill=(255, 255, 255, 255),
-               stroke_width=3, stroke_fill=(0, 0, 0, 255))
-        y += lh + spacing
+    def draw_lines(d, dx, dy, fill, stroke_fill):
+        y = pad + dy
+        for l in lines:
+            x = (cw - probe.textlength(l, font=font)) / 2 + dx
+            d.text((x, y), l, font=font, fill=fill,
+                   stroke_width=stroke, stroke_fill=stroke_fill)
+            y += lh + spacing
+
+    shadow = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    draw_lines(ImageDraw.Draw(shadow), 2, 5, (0, 0, 0, 210), (0, 0, 0, 210))
+    img = shadow.filter(ImageFilter.GaussianBlur(6))
+    draw_lines(ImageDraw.Draw(img), 0, 0, (255, 255, 255, 255), (0, 0, 0, 255))
     png = os.path.join(tmp, f"sub_{idx}.png")
     img.save(png)
 
@@ -193,7 +196,7 @@ def _subtitle(text: str, start: float, dur: float, idx: int, tmp: str):
 
     def pos(t):
         s = scale(t)
-        return ((W - box_w * s) / 2, H * SUB_Y - box_h * s / 2)
+        return ((W - cw * s) / 2, H * SUB_Y - ch * s / 2)
 
     clip = (ImageClip(png, transparent=True).with_duration(dur + GAP)
             .resized(scale).with_position(pos).with_start(start))
