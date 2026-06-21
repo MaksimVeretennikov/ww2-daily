@@ -29,12 +29,33 @@ MUSIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "
 
 # --- voiceover ---------------------------------------------------------------
 
+def _trust_system_cas() -> None:
+    """Point edge-tts at the system CA bundle.
+
+    edge-tts hardcodes an SSL context built from certifi. Behind an
+    SSL-intercepting proxy (as in the cloud routine), certifi lacks the
+    proxy's CA, so synthesis fails handshake. SSL_CERT_FILE /
+    REQUESTS_CA_BUNDLE point at a bundle that *does* include it; rebuild the
+    edge-tts context from there when available."""
+    bundle = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
+    if not bundle or not os.path.exists(bundle):
+        return
+    try:
+        import ssl
+
+        import edge_tts.communicate as _ec
+        _ec._SSL_CTX = ssl.create_default_context(cafile=bundle)
+    except Exception:
+        pass
+
+
 def synthesize(text: str, lang: str, out_path: str) -> bool:
     """edge-tts -> mp3. Returns True on success, False if unavailable."""
     if not text:
         return False
     try:
         import edge_tts
+        _trust_system_cas()
 
         async def _run():
             await edge_tts.Communicate(text, VOICES.get(lang, VOICES["en"])).save(out_path)
