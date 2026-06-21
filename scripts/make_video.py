@@ -64,6 +64,13 @@ def main() -> None:
             block = {**block, "shots": _localize(block["shots"], lang)}
         if block.get("segments"):
             block = {**block, "segments": _localize(block["segments"], lang)}
+        if block.get("lines"):
+            new_lines = []
+            for j, ln in enumerate(block["lines"]):
+                if ln.get("shots"):
+                    ln = {**ln, "shots": _localize(ln["shots"], f"{lang}_l{j}")}
+                new_lines.append(ln)
+            block = {**block, "lines": new_lines}
 
         out = os.path.join(_bootstrap.RUN_DIR, f"video_{lang}.mp4")
         video.build(block, out, lang)

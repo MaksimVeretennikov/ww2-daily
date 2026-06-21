@@ -26,9 +26,9 @@ import glob
 import os
 import tempfile
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from moviepy import (AudioFileClip, CompositeAudioClip, CompositeVideoClip,
-                     ImageClip, TextClip, VideoFileClip, concatenate_videoclips)
+                     ImageClip, VideoFileClip, concatenate_videoclips)
 
 W, H = 1080, 1920
 FPS = 30
@@ -37,7 +37,7 @@ FALLBACK_LINE = 2.2              # per line when no narration audio
 LEAD_IN = 0.12                   # silence before first line
 GAP = 0.10                       # silence between lines
 TAIL = 0.30                      # silence after last line
-SUB_Y = 0.60                     # subtitle centre, fraction of height (lower-centre)
+SUB_Y = 0.58                     # subtitle centre, fraction of height (lower-centre)
 VOICES = {"ru": "ru-RU-DmitryNeural", "en": "en-US-GuyNeural"}
 RATE = {"ru": "+20%", "en": "+16%"}   # brisk delivery
 MUSIC_VOL = 0.30
@@ -148,30 +148,61 @@ def _shot_video(src: str, dur: float, start: float):
 
 # --- subtitles ---------------------------------------------------------------
 
-def _subtitle(text: str, start: float, dur: float):
-    """Lower-centre subtitle that pops in with a small scale-up."""
-    tc = TextClip(text=text, font=FONT, font_size=62, color="white",
-                  method="caption", size=(int(W * 0.82), None), text_align="center",
-                  stroke_color="black", stroke_width=4)
-    w0, h0 = tc.size
+def _wrap(draw, text, font, max_w):
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        t = (cur + " " + w).strip()
+        if not cur or draw.textlength(t, font=font) <= max_w:
+            cur = t
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _subtitle(text: str, start: float, dur: float, idx: int, tmp: str):
+    """Lower-centre subtitle on a soft translucent pill, popping in with a
+    small scale-up. Rendered with Pillow for full control over the look."""
+    font = ImageFont.truetype(FONT, 56)
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    lines = _wrap(probe, text, font, int(W * 0.76))
+    asc, desc = font.getmetrics()
+    lh, spacing, pad_x, pad_y = asc + desc, 10, 34, 22
+    text_w = max(int(probe.textlength(l, font=font)) for l in lines)
+    box_w = text_w + 2 * pad_x
+    box_h = lh * len(lines) + spacing * (len(lines) - 1) + 2 * pad_y
+
+    img = Image.new("RGBA", (box_w, box_h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([0, 0, box_w - 1, box_h - 1], radius=26, fill=(0, 0, 0, 120))
+    y = pad_y
+    for l in lines:
+        x = (box_w - probe.textlength(l, font=font)) / 2
+        d.text((x, y), l, font=font, fill=(255, 255, 255, 255),
+               stroke_width=3, stroke_fill=(0, 0, 0, 255))
+        y += lh + spacing
+    png = os.path.join(tmp, f"sub_{idx}.png")
+    img.save(png)
 
     def scale(t):
         k = min(t / 0.16, 1.0)
         k = k * k * (3 - 2 * k)             # smoothstep
-        return 0.74 + 0.26 * k
+        return 0.82 + 0.18 * k
 
     def pos(t):
         s = scale(t)
-        return ((W - w0 * s) / 2, H * SUB_Y - h0 * s / 2)
+        return ((W - box_w * s) / 2, H * SUB_Y - box_h * s / 2)
 
-    tc = (tc.with_duration(dur + GAP).resized(scale)
-          .with_position(pos).with_start(start))
+    clip = (ImageClip(png, transparent=True).with_duration(dur + GAP)
+            .resized(scale).with_position(pos).with_start(start))
     try:
         from moviepy import vfx
-        tc = tc.with_effects([vfx.CrossFadeIn(0.12)])
+        clip = clip.with_effects([vfx.CrossFadeIn(0.12)])
     except Exception:
         pass
-    return tc
+    return clip
 
 
 # --- audio -------------------------------------------------------------------
@@ -194,9 +225,14 @@ def _music_bed(total: float):
 # --- building ----------------------------------------------------------------
 
 def _normalize(block: dict) -> tuple[list, list]:
-    """Return (lines, shots) from either the new or the legacy spec shape."""
-    if block.get("lines") or block.get("shots"):
-        return block.get("lines", []), block.get("shots", [])
+    """Return (lines, flat_shots). If every line carries its own `shots`,
+    flat_shots is None and visuals are aligned to the narration lines.
+    Otherwise flat_shots is a list spread across the whole timeline."""
+    if block.get("lines"):
+        lines = block["lines"]
+        if lines and all(ln.get("shots") for ln in lines):
+            return lines, None
+        return lines, block.get("shots", [])
     lines, shots = [], []
     for seg in block.get("segments", []):
         text = seg.get("text") or seg.get("caption") or ""
@@ -205,12 +241,19 @@ def _normalize(block: dict) -> tuple[list, list]:
     return lines, shots
 
 
+def _shot(s: dict, dur: float, idx: int, tmp: str):
+    if s.get("video"):
+        return _shot_video(s["video"], dur, float(s.get("start", 0.0)))
+    return _shot_image(s["image"], dur, idx, tmp)
+
+
 def build(block: dict, out_path: str, lang: str = "ru") -> str:
     tmp = tempfile.mkdtemp(prefix="ww2vid_")
-    lines, shots = _normalize(block)
+    lines, flat_shots = _normalize(block)
 
-    # 1) voiceover + subtitle timeline
+    # 1) voiceover + subtitle timeline; record each line's start/duration
     narration, subs = [], []
+    starts, durs = [], []
     t = LEAD_IN
     for i, ln in enumerate(lines):
         text = ln.get("text") or ""
@@ -222,22 +265,35 @@ def build(block: dict, out_path: str, lang: str = "ru") -> str:
             narration.append(a.with_start(t))
         else:
             d = FALLBACK_LINE
+        starts.append(t)
+        durs.append(d)
         if text:
-            subs.append(_subtitle(text, t, d))
+            subs.append(_subtitle(text, t, d, i, tmp))
         t += d + GAP
     total = t - GAP + TAIL
 
-    # 2) visual track: shots cut fast to fill `total`
-    weights = [float(s.get("weight", 1.0)) for s in shots] or [1.0]
-    wsum = sum(weights)
-    durs = [total * w / wsum for w in weights]
-    durs[-1] += total - sum(durs)          # absorb rounding into the last shot
-    shot_clips = []
-    for i, (s, d) in enumerate(zip(shots, durs)):
-        if s.get("video"):
-            shot_clips.append(_shot_video(s["video"], d, float(s.get("start", 0.0))))
-        else:
-            shot_clips.append(_shot_image(s["image"], d, i, tmp))
+    # 2) visual track
+    shot_clips, sidx = [], 0
+    if flat_shots is None:
+        # aligned: each line's shots fill that line's on-screen window, so a cut
+        # lands on every new line (plus extra cuts inside multi-shot lines)
+        win_start = [0.0] + starts[1:]
+        win_end = starts[1:] + [total]
+        for i, ln in enumerate(lines):
+            shots = ln["shots"]
+            span = (win_end[i] - win_start[i]) / len(shots)
+            for s in shots:
+                shot_clips.append(_shot(s, span, sidx, tmp))
+                sidx += 1
+    else:
+        # decoupled: spread flat shots across the whole clip by weight
+        weights = [float(s.get("weight", 1.0)) for s in flat_shots] or [1.0]
+        wsum = sum(weights)
+        sdurs = [total * w / wsum for w in weights]
+        sdurs[-1] += total - sum(sdurs)
+        for s, d in zip(flat_shots, sdurs):
+            shot_clips.append(_shot(s, d, sidx, tmp))
+            sidx += 1
     visual = concatenate_videoclips(shot_clips, method="compose")
 
     # 3) compose subtitles over visuals
