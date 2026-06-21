@@ -1,17 +1,24 @@
 """Vertical short-video generator (9:16) for VK Clips / YouTube Shorts.
 
-Builds a clip from a few archival images that each *fill* the vertical frame
-(cover-crop + slow pan — no letterbox bands), with the spoken line shown as a
-styled subtitle over a bottom gradient, a generated voiceover (edge-tts) and an
-audible music bed. Pure pip toolchain: moviepy 2.x + imageio-ffmpeg + Pillow +
-edge-tts (no system packages). Voiceover degrades gracefully: if synthesis is
-unavailable, segments fall back to a fixed duration and the clip is silent
-except for music.
+Fast-cut style inspired by history Shorts: the narration is split into short
+*lines* (each shown as a pop-in subtitle in the lower-centre, where the eye
+rests), while the *visuals* are a separate, denser track of shots cut quickly
+to fill the voiceover. Shots can be images or short archival video clips.
 
-Spec per segment:
-    {"image": "<local path>", "text": "<line shown AND spoken>",
-     "say": "<optional TTS override>"}
-Legacy keys `caption`/`narration` are still accepted.
+Framing rule (matches what reads well vertically):
+  - portrait/tall source  -> fills the whole frame (cover) with a slow zoom;
+  - landscape/wide source  -> shown whole, centred, over its own blurred,
+    darkened background (no ugly hard crop, no empty black bands).
+
+Pure pip toolchain: moviepy 2.x + imageio-ffmpeg + Pillow + edge-tts. Voiceover
+degrades gracefully: if synthesis is unavailable, lines fall back to a fixed
+duration and the clip is silent except for music.
+
+Spec per language:
+    {"lines": [{"text": "<shown & spoken>", "say": "<optional TTS override>"}],
+     "shots": [{"image": "<path>"} | {"video": "<path>", "start": s, "dur": d},
+               ... each may carry "weight" for relative on-screen time]}
+Legacy `segments` (image+caption+narration) is still accepted.
 """
 
 import asyncio
@@ -19,31 +26,28 @@ import glob
 import os
 import tempfile
 
-from PIL import Image
+from PIL import Image, ImageFilter
 from moviepy import (AudioFileClip, CompositeAudioClip, CompositeVideoClip,
-                     ImageClip, TextClip, concatenate_videoclips)
+                     ImageClip, TextClip, VideoFileClip, concatenate_videoclips)
 
 W, H = 1080, 1920
 FPS = 30
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-FALLBACK_SECONDS = 3.4           # per segment when no narration audio
+FALLBACK_LINE = 2.2              # per line when no narration audio
+LEAD_IN = 0.12                   # silence before first line
+GAP = 0.10                       # silence between lines
+TAIL = 0.30                      # silence after last line
+SUB_Y = 0.60                     # subtitle centre, fraction of height (lower-centre)
 VOICES = {"ru": "ru-RU-DmitryNeural", "en": "en-US-GuyNeural"}
-RATE = {"ru": "+11%", "en": "+8%"}  # a touch brisker -> fits the <=20s budget
-MUSIC_VOL = 0.34                 # audible under the (full-scale) voice
-OVERSCALE = 1.18                 # image is prepped larger than frame, then panned
+RATE = {"ru": "+20%", "en": "+16%"}   # brisk delivery
+MUSIC_VOL = 0.30
 MUSIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "music")
 
 
 # --- voiceover ---------------------------------------------------------------
 
 def _trust_system_cas() -> None:
-    """Point edge-tts at the system CA bundle.
-
-    edge-tts hardcodes an SSL context built from certifi. Behind an
-    SSL-intercepting proxy (as in the cloud routine), certifi lacks the
-    proxy's CA, so synthesis fails handshake. SSL_CERT_FILE /
-    REQUESTS_CA_BUNDLE point at a bundle that *does* include it; rebuild the
-    edge-tts context from there when available."""
+    """Point edge-tts at the system CA bundle (needed behind the cloud proxy)."""
     bundle = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
     if not bundle or not os.path.exists(bundle):
         return
@@ -71,85 +75,106 @@ def synthesize(text: str, lang: str, out_path: str) -> bool:
 
         asyncio.run(_run())
         return os.path.exists(out_path) and os.path.getsize(out_path) > 0
-    except Exception as exc:  # network/proxy/etc — fall back to silent
-        print(f"[video] TTS unavailable ({type(exc).__name__}); silent segment.")
+    except Exception as exc:
+        print(f"[video] TTS unavailable ({type(exc).__name__}); silent line.")
         return False
 
 
 # --- image preparation -------------------------------------------------------
 
-def _prep_cover(src: str, dst: str) -> str:
-    """Cover-crop the source to the vertical frame (oversized by OVERSCALE so it
-    can be panned without revealing edges). Returns 'h' or 'v' as a pan hint
-    based on the *original* aspect ratio."""
+def _prep_cover(src: str, dst: str) -> None:
+    """Cover-crop the source to exactly the frame (for portrait sources)."""
     img = Image.open(src).convert("RGB")
-    orient = "h" if img.width >= img.height else "v"
-    tw, th = int(W * OVERSCALE), int(H * OVERSCALE)
-    scale = max(tw / img.width, th / img.height)
-    img = img.resize((max(tw, round(img.width * scale)),
-                      max(th, round(img.height * scale))), Image.LANCZOS)
-    left = (img.width - tw) // 2
-    top = (img.height - th) // 2
-    img = img.crop((left, top, left + tw, top + th))
-    img.save(dst, quality=92)
-    return orient
+    scale = max(W / img.width, H / img.height)
+    img = img.resize((max(W, round(img.width * scale)),
+                      max(H, round(img.height * scale))), Image.LANCZOS)
+    left = (img.width - W) // 2
+    top = (img.height - H) // 2
+    img.crop((left, top, left + W, top + H)).save(dst, quality=92)
 
 
-def _gradient_overlay(tmp: str) -> str:
-    """A reusable bottom-up dark gradient so subtitles stay legible on any
-    image. Transparent across the top ~55%, ramping to near-opaque black."""
-    path = os.path.join(tmp, "grad.png")
-    grad = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    px = grad.load()
-    start = int(H * 0.52)
-    for y in range(start, H):
-        a = int(210 * (y - start) / (H - start))
-        for x in range(W):
-            px[x, y] = (0, 0, 0, a)
-    grad.save(path)
-    return path
+def _prep_fit(src: str, dst: str) -> None:
+    """Fit a landscape source whole inside the frame (full width, centred)."""
+    img = Image.open(src).convert("RGB")
+    scale = min(W / img.width, (H * 0.86) / img.height)
+    img.resize((round(img.width * scale), round(img.height * scale)),
+               Image.LANCZOS).save(dst, quality=92)
 
 
-# --- building ----------------------------------------------------------------
-
-def _pan(orient: str, idx: int, duration: float):
-    """A slow linear pan that always keeps the oversized image covering the
-    frame. Alternates direction per segment for variety."""
-    head_x = int(W * OVERSCALE) - W
-    head_y = int(H * OVERSCALE) - H
-    fwd = (idx % 2 == 0)
-    if orient == "h":                      # landscape -> reveal width
-        y = -head_y // 2
-        x0, x1 = (-head_x * 0.12, -head_x * 0.88) if fwd else (-head_x * 0.88, -head_x * 0.12)
-        return lambda t: (x0 + (x1 - x0) * (t / duration), y)
-    x = -head_x // 2                       # portrait -> reveal height
-    y0, y1 = (-head_y * 0.12, -head_y * 0.80) if fwd else (-head_y * 0.80, -head_y * 0.12)
-    return lambda t: (x, y0 + (y1 - y0) * (t / duration))
+def _prep_blur(src: str, dst: str) -> None:
+    """Blurred, darkened full-frame background for letterboxed landscapes."""
+    img = Image.open(src).convert("RGB")
+    scale = max(W / img.width, H / img.height)
+    img = img.resize((round(img.width * scale), round(img.height * scale)))
+    left = (img.width - W) // 2
+    top = (img.height - H) // 2
+    img = img.crop((left, top, left + W, top + H))
+    img.filter(ImageFilter.GaussianBlur(45)).point(lambda p: int(p * 0.5)).save(dst, quality=86)
 
 
-def _segment(image_path: str, text: str, duration: float, grad_path: str,
-             tmp: str, idx: int):
-    cover_path = os.path.join(tmp, f"cv_{idx}.jpg")
-    orient = _prep_cover(image_path, cover_path)
+# --- shots -------------------------------------------------------------------
 
-    img = (ImageClip(cover_path).with_duration(duration)
-           .with_position(_pan(orient, idx, duration)))
-    grad = ImageClip(grad_path, transparent=True).with_duration(duration)
+def _shot_image(src: str, dur: float, idx: int, tmp: str):
+    img = Image.open(src)
+    aspect = img.width / img.height
+    if aspect < 0.85:                       # clearly portrait -> fill the frame
+        cov = os.path.join(tmp, f"cov_{idx}.jpg")
+        _prep_cover(src, cov)
+        clip = (ImageClip(cov).with_duration(dur)
+                .resized(lambda t: 1 + 0.05 * t / dur).with_position("center"))
+        return CompositeVideoClip([clip], size=(W, H))
+    # landscape / square -> whole image over its blurred background
+    fg = os.path.join(tmp, f"fg_{idx}.jpg")
+    bg = os.path.join(tmp, f"bg_{idx}.jpg")
+    _prep_fit(src, fg)
+    _prep_blur(src, bg)
+    bgc = (ImageClip(bg).with_duration(dur)
+           .resized(lambda t: 1 + 0.05 * t / dur).with_position("center"))
+    fgc = (ImageClip(fg).with_duration(dur)
+           .resized(lambda t: 1 + 0.02 * t / dur).with_position("center"))
+    return CompositeVideoClip([bgc, fgc], size=(W, H))
 
-    layers = [img, grad]
-    if text:
-        txt = (TextClip(text=text, font=FONT, font_size=62, color="white",
-                        method="caption", size=(int(W * 0.84), None),
-                        text_align="center", stroke_color="black", stroke_width=3)
-               .with_duration(duration).with_position(("center", int(H * 0.70))))
-        try:
-            from moviepy import vfx
-            txt = txt.with_effects([vfx.CrossFadeIn(0.25)])
-        except Exception:
-            pass
-        layers.append(txt)
-    return CompositeVideoClip(layers, size=(W, H))
 
+def _shot_video(src: str, dur: float, start: float):
+    """Short archival clip, cover-fit to the frame."""
+    v = VideoFileClip(src)
+    seg = v.subclipped(start, min(start + dur, v.duration))
+    scale = max(W / seg.w, H / seg.h)
+    seg = seg.resized(scale)
+    x, y = (seg.w - W) / 2, (seg.h - H) / 2
+    seg = seg.cropped(x1=x, y1=y, x2=x + W, y2=y + H).with_duration(dur)
+    return CompositeVideoClip([seg], size=(W, H))
+
+
+# --- subtitles ---------------------------------------------------------------
+
+def _subtitle(text: str, start: float, dur: float):
+    """Lower-centre subtitle that pops in with a small scale-up."""
+    tc = TextClip(text=text, font=FONT, font_size=62, color="white",
+                  method="caption", size=(int(W * 0.82), None), text_align="center",
+                  stroke_color="black", stroke_width=4)
+    w0, h0 = tc.size
+
+    def scale(t):
+        k = min(t / 0.16, 1.0)
+        k = k * k * (3 - 2 * k)             # smoothstep
+        return 0.74 + 0.26 * k
+
+    def pos(t):
+        s = scale(t)
+        return ((W - w0 * s) / 2, H * SUB_Y - h0 * s / 2)
+
+    tc = (tc.with_duration(dur + GAP).resized(scale)
+          .with_position(pos).with_start(start))
+    try:
+        from moviepy import vfx
+        tc = tc.with_effects([vfx.CrossFadeIn(0.12)])
+    except Exception:
+        pass
+    return tc
+
+
+# --- audio -------------------------------------------------------------------
 
 def _music_bed(total: float):
     tracks = sorted(glob.glob(os.path.join(MUSIC_DIR, "*.mp3")) +
@@ -166,38 +191,60 @@ def _music_bed(total: float):
     return track
 
 
-def _line(seg: dict, key_text: str, key_say: str) -> tuple[str, str]:
-    """(subtitle, tts) from a segment, honouring legacy keys."""
-    text = seg.get("text") or seg.get("caption") or ""
-    say = seg.get("say") or seg.get("narration") or text
-    return text, say
+# --- building ----------------------------------------------------------------
+
+def _normalize(block: dict) -> tuple[list, list]:
+    """Return (lines, shots) from either the new or the legacy spec shape."""
+    if block.get("lines") or block.get("shots"):
+        return block.get("lines", []), block.get("shots", [])
+    lines, shots = [], []
+    for seg in block.get("segments", []):
+        text = seg.get("text") or seg.get("caption") or ""
+        lines.append({"text": text, "say": seg.get("say") or seg.get("narration") or text})
+        shots.append({"image": seg.get("image"), "video": seg.get("video")})
+    return lines, shots
 
 
-def build(spec: dict, out_path: str) -> str:
-    """spec: {lang, segments:[{image, text, say?}]}. `image` is a local path."""
-    lang = spec.get("lang", "ru")
+def build(block: dict, out_path: str, lang: str = "ru") -> str:
     tmp = tempfile.mkdtemp(prefix="ww2vid_")
-    grad_path = _gradient_overlay(tmp)
-    clips, narration_audio = [], []
-    cursor = 0.0
+    lines, shots = _normalize(block)
 
-    for i, seg in enumerate(spec["segments"]):
-        text, say = _line(seg, "text", "say")
-        audio_path = os.path.join(tmp, f"v_{i}.mp3")
-        has_voice = synthesize(say, lang, audio_path)
-        if has_voice:
-            a = AudioFileClip(audio_path)
-            duration = a.duration + 0.35
-            narration_audio.append(a.with_start(cursor + 0.12))
+    # 1) voiceover + subtitle timeline
+    narration, subs = [], []
+    t = LEAD_IN
+    for i, ln in enumerate(lines):
+        text = ln.get("text") or ""
+        say = ln.get("say") or text
+        ap = os.path.join(tmp, f"v_{i}.mp3")
+        if synthesize(say, lang, ap):
+            a = AudioFileClip(ap)
+            d = a.duration
+            narration.append(a.with_start(t))
         else:
-            duration = FALLBACK_SECONDS
-        clips.append(_segment(seg["image"], text, duration, grad_path, tmp, i))
-        cursor += duration
+            d = FALLBACK_LINE
+        if text:
+            subs.append(_subtitle(text, t, d))
+        t += d + GAP
+    total = t - GAP + TAIL
 
-    video = concatenate_videoclips(clips, method="compose").with_fps(FPS)
-    total = video.duration
+    # 2) visual track: shots cut fast to fill `total`
+    weights = [float(s.get("weight", 1.0)) for s in shots] or [1.0]
+    wsum = sum(weights)
+    durs = [total * w / wsum for w in weights]
+    durs[-1] += total - sum(durs)          # absorb rounding into the last shot
+    shot_clips = []
+    for i, (s, d) in enumerate(zip(shots, durs)):
+        if s.get("video"):
+            shot_clips.append(_shot_video(s["video"], d, float(s.get("start", 0.0))))
+        else:
+            shot_clips.append(_shot_image(s["image"], d, i, tmp))
+    visual = concatenate_videoclips(shot_clips, method="compose")
 
-    audio_tracks = list(narration_audio)
+    # 3) compose subtitles over visuals
+    video = CompositeVideoClip([visual, *subs], size=(W, H)).with_duration(total).with_fps(FPS)
+
+    # 4) audio
+    audio_tracks = list(narration)
     music = _music_bed(total)
     if music is not None:
         audio_tracks.append(music)
