@@ -101,15 +101,20 @@ def _prep_fit(src: str, dst: str) -> None:
                Image.LANCZOS).save(dst, quality=92)
 
 
-def _prep_blur(src: str, dst: str) -> None:
-    """Blurred, darkened full-frame background for letterboxed landscapes."""
-    img = Image.open(src).convert("RGB")
+def _blur_cover(img: Image.Image, dst: str) -> None:
+    """Blurred, darkened full-frame background from a PIL image."""
+    img = img.convert("RGB")
     scale = max(W / img.width, H / img.height)
     img = img.resize((round(img.width * scale), round(img.height * scale)))
     left = (img.width - W) // 2
     top = (img.height - H) // 2
     img = img.crop((left, top, left + W, top + H))
     img.filter(ImageFilter.GaussianBlur(45)).point(lambda p: int(p * 0.5)).save(dst, quality=86)
+
+
+def _prep_blur(src: str, dst: str) -> None:
+    """Blurred, darkened full-frame background for letterboxed landscapes."""
+    _blur_cover(Image.open(src), dst)
 
 
 # --- shots -------------------------------------------------------------------
@@ -135,15 +140,18 @@ def _shot_image(src: str, dur: float, idx: int, tmp: str):
     return CompositeVideoClip([bgc, fgc], size=(W, H))
 
 
-def _shot_video(src: str, dur: float, start: float):
-    """Short archival clip, cover-fit to the frame."""
+def _shot_video(src: str, dur: float, start: float, idx: int, tmp: str):
+    """Short archival clip shown whole, centred, over its own blurred
+    background (so low-res footage isn't hard-upscaled to full frame)."""
     v = VideoFileClip(src)
-    seg = v.subclipped(start, min(start + dur, v.duration))
-    scale = max(W / seg.w, H / seg.h)
-    seg = seg.resized(scale)
-    x, y = (seg.w - W) / 2, (seg.h - H) / 2
-    seg = seg.cropped(x1=x, y1=y, x2=x + W, y2=y + H).with_duration(dur)
-    return CompositeVideoClip([seg], size=(W, H))
+    seg = v.subclipped(start, min(start + dur, v.duration)).with_duration(dur)
+    bgp = os.path.join(tmp, f"vbg_{idx}.jpg")
+    _blur_cover(Image.fromarray(seg.get_frame(0)), bgp)
+    bg = (ImageClip(bgp).with_duration(dur)
+          .resized(lambda t: 1 + 0.04 * t / dur).with_position("center"))
+    fit = min(W / seg.w, (H * 0.86) / seg.h)
+    fg = seg.resized(fit).with_position("center")
+    return CompositeVideoClip([bg, fg], size=(W, H))
 
 
 # --- subtitles ---------------------------------------------------------------
@@ -246,7 +254,7 @@ def _normalize(block: dict) -> tuple[list, list]:
 
 def _shot(s: dict, dur: float, idx: int, tmp: str):
     if s.get("video"):
-        return _shot_video(s["video"], dur, float(s.get("start", 0.0)))
+        return _shot_video(s["video"], dur, float(s.get("start", 0.0)), idx, tmp)
     return _shot_image(s["image"], dur, idx, tmp)
 
 
