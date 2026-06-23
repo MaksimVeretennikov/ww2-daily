@@ -37,7 +37,8 @@ python scripts/fetch_sources.py
 ```bash
 python scripts/find_photo.py --image-prompt "<image_prompt>" --category-prompt "<category_prompt>"
 ```
-**Посмотри превью (Read)**, выбери подходящий архивный кадр; нет — `image_index: -1`.
+**Посмотри превью (Read)**, выбери подходящий архивный кадр. Не нашёл —
+расширь запрос (1–2 повтора); `image_index: -1` только как крайний случай.
 
 ### Шаг 4. Опубликовать
 `run/draft.json`:
