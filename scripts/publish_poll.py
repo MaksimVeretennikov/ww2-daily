@@ -23,7 +23,7 @@ import os
 import random
 
 import _bootstrap  # noqa: F401
-from ww2daily import state, telegram
+from ww2daily import config, gitsync, state, telegram
 
 POLL = os.path.join(_bootstrap.RUN_DIR, "poll.json")
 
@@ -73,10 +73,13 @@ def main() -> None:
         "correct_index": correct_index,
         "explanation": poll.get("explanation", ""),
     }
-    from ww2daily import config
     if not config.DRY_RUN:
         state.append_poll(record)
         print("Recorded poll in", config.POLLS_PATH)
+        # Push the memory back immediately so a missed/failed manual commit
+        # can't make the next run forget this poll and repeat it.
+        ru_human = poll.get("ww2_date") or today
+        gitsync.persist(config.POLLS_PATH, f"poll: {poll.get('theme')} ({ru_human})")
     else:
         print("[DRY_RUN] would record:", json.dumps(record, ensure_ascii=False))
 

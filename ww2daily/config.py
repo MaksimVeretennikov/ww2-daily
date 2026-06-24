@@ -53,6 +53,12 @@ STATE_PATH = os.environ.get("STATE_PATH", "state/history.json")
 # Poll history lives in its own file so it doesn't bloat the post history.
 POLLS_PATH = os.environ.get("POLLS_PATH", "state/polls.json")
 
+# Where the publish scripts push committed state back to. The container is
+# ephemeral, so state must be PUSHED, not just committed locally, or the next
+# run clones a repo that has forgotten it (this is how a poll got duplicated:
+# the previous day's poll posted but its state was never pushed).
+STATE_PUSH_REF = os.environ.get("STATE_PUSH_REF", "main")
+
 # --- Flags -------------------------------------------------------------------
 
 def _flag(name: str, default: str = "0") -> bool:
@@ -60,6 +66,10 @@ def _flag(name: str, default: str = "0") -> bool:
 
 DRY_RUN = _flag("DRY_RUN")
 X_ENABLED = _flag("X_ENABLED")
+# Publish scripts commit and push the updated state file themselves right after
+# recording, so a forgotten or failed manual commit step can't lose the
+# channel's memory. Set STATE_AUTOCOMMIT=0 to fall back to a purely manual flow.
+STATE_AUTOCOMMIT = _flag("STATE_AUTOCOMMIT", "1")
 
 # --- Secrets (read lazily by the modules that need them) ---------------------
 
