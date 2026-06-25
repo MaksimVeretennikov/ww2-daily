@@ -144,7 +144,14 @@ def _shot_video(src: str, dur: float, start: float, idx: int, tmp: str):
     """Short archival clip shown whole, centred, over its own blurred
     background (so low-res footage isn't hard-upscaled to full frame)."""
     v = VideoFileClip(src)
-    seg = v.subclipped(start, min(start + dur, v.duration)).with_duration(dur)
+    avail = max(0.04, min(dur, v.duration - start))
+    if avail < dur - 0.05:               # clip shorter than the line: loop it,
+        reps = int(dur / avail) + 1      # so motion continues instead of freezing
+        seg = concatenate_videoclips(
+            [v.subclipped(start, start + avail) for _ in range(reps)]
+        ).subclipped(0, dur)
+    else:
+        seg = v.subclipped(start, start + avail).with_duration(dur)
     bgp = os.path.join(tmp, f"vbg_{idx}.jpg")
     _blur_cover(Image.fromarray(seg.get_frame(0)), bgp)
     bg = (ImageClip(bgp).with_duration(dur)
