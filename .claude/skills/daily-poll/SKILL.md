@@ -19,6 +19,12 @@ description: Ежедневный опрос-викторина канала @ww
 ```bash
 pip install -r requirements.txt
 ```
+Подтяни полную память со всех веток, чтобы не повторить недавний опрос/тему
+(записи могут лежать на ветках `claude/*` — см. README §8):
+```bash
+git fetch origin --prune
+python scripts/consolidate_state.py
+```
 
 ### Шаг 1. Контекст
 ```bash
@@ -59,8 +65,12 @@ python scripts/publish_poll.py
 
 ### Шаг 5. Сохранить память
 ```bash
-git add state/polls.json && git commit -m "poll: {theme} ({date.ru_human})" && git push origin HEAD:main
+git add state/
+git commit -m "poll: {theme} ({date.ru_human})"
+git push origin HEAD:main || git push -u origin HEAD
 ```
+Если push в `main` недоступен (рутина на ветке `claude/*`), запись уйдёт в ветку
+рутины — её перенесёт в `main` следующая утренняя консолидация. Не теряется.
 
 ## Как сделать ответ НЕочевидным (важно)
 Главный анти-паттерн прошлых опросов: **верным был самый длинный / самый
