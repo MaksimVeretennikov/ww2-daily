@@ -39,7 +39,8 @@ GAP = 0.04                       # short silence between lines (snappy pacing)
 TAIL = 0.20                      # silence after last line
 SUB_Y = 0.58                     # subtitle centre, fraction of height (lower-centre)
 VOICES = {"ru": "ru-RU-DmitryNeural", "en": "en-US-GuyNeural"}
-RATE = {"ru": "+20%", "en": "+16%"}   # brisk delivery
+RATE = {"ru": "+8%", "en": "+6%"}     # measured, not rushed
+PITCH = {"ru": "-2Hz", "en": "-2Hz"}  # a touch lower for gravitas
 MUSIC_VOL = 0.30
 MUSIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "music")
 
@@ -70,7 +71,8 @@ def synthesize(text: str, lang: str, out_path: str) -> bool:
 
         async def _run():
             await edge_tts.Communicate(
-                text, VOICES.get(lang, VOICES["en"]), rate=RATE.get(lang, "+0%")
+                text, VOICES.get(lang, VOICES["en"]),
+                rate=RATE.get(lang, "+0%"), pitch=PITCH.get(lang, "+0Hz"),
             ).save(out_path)
 
         asyncio.run(_run())
