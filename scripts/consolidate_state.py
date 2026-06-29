@@ -31,10 +31,9 @@ POLLS = "state/polls.json"
 
 # Records confirmed to be dev/test runs (e.g. a DRY_RUN during skill
 # development) that were never published to the channel. Keyed exactly like
-# `_hist_key`: (date_posted, kind, subject).
-EXCLUDE_HISTORY = {
-    ("2026-06-20", "person", "Георгий Жуков"),  # DRY_RUN test of the new rubric
-}
+# `_hist_key`: (date_posted, kind, subject). Add an entry only when you are sure
+# the post never went to the channel — when in doubt, keep it (de-dup safety).
+EXCLUDE_HISTORY: set[tuple] = set()
 
 
 def _sh(*args: str) -> subprocess.CompletedProcess:
