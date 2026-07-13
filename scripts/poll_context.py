@@ -16,14 +16,18 @@ from ww2daily import dates, sources, state
 
 CTX_PATH = os.path.join(_bootstrap.RUN_DIR, "poll_context.json")
 RECENT_POST_DAYS = 14
+# Posts this fresh (including today's morning post) are off-limits as the
+# source of a poll's answer — subscribers just read them.
+FRESH_POST_DAYS = 3
 
 
 def main() -> None:
     d = dates.target()
     gathered = sources.gather(d)
 
-    cutoff = (datetime.date.today() -
-              datetime.timedelta(days=RECENT_POST_DAYS)).isoformat()
+    today = datetime.date.today()
+    cutoff = (today - datetime.timedelta(days=RECENT_POST_DAYS)).isoformat()
+    fresh_cutoff = (today - datetime.timedelta(days=FRESH_POST_DAYS)).isoformat()
     recent_posts = [
         {
             "date_posted": p.get("date_posted"),
@@ -31,6 +35,7 @@ def main() -> None:
             "kind": state.kind_of(p),
             "topic": p.get("topic"),
             "subject": p.get("subject"),
+            "too_fresh_for_poll": (p.get("date_posted") or "") >= fresh_cutoff,
         }
         for p in state.load().get("posts", [])
         if (p.get("date_posted") or "") >= cutoff
@@ -55,7 +60,10 @@ def main() -> None:
         json.dump(payload, fh, ensure_ascii=False, indent=2)
 
     print(f"Channel date: {d['ru_human']} ({d['iso']})")
-    print(f"Recent posts (≤{RECENT_POST_DAYS}d): {len(recent_posts)}")
+    n_fresh = sum(1 for p in recent_posts if p["too_fresh_for_poll"])
+    print(f"Recent posts (≤{RECENT_POST_DAYS}d): {len(recent_posts)}, "
+          f"of which too fresh to source a poll answer (≤{FRESH_POST_DAYS}d): "
+          f"{n_fresh}")
     print(f"Known polls for anti-repeat: {len(recent_polls)}")
     print(f"\nWrote {CTX_PATH}")
 
