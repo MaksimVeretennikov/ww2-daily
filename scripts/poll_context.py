@@ -24,6 +24,7 @@ def main() -> None:
 
     cutoff = (datetime.date.today() -
               datetime.timedelta(days=RECENT_POST_DAYS)).isoformat()
+    posts = state.load().get("posts", [])
     recent_posts = [
         {
             "date_posted": p.get("date_posted"),
@@ -32,9 +33,30 @@ def main() -> None:
             "topic": p.get("topic"),
             "subject": p.get("subject"),
         }
-        for p in state.load().get("posts", [])
+        for p in posts
         if (p.get("date_posted") or "") >= cutoff
     ]
+
+    # The morning daily post for the SAME channel date. The poll must not test
+    # facts already stated there — so give the model its full text, not just a
+    # label, and flag it explicitly. (This is the overlap that used to slip
+    # through: the poll session only ever saw the short `topic` before.)
+    todays_morning_post = next(
+        (
+            {
+                "ww2_date": p.get("ww2_date"),
+                "topic": p.get("topic"),
+                "subject": p.get("subject"),
+                "telegram_caption": p.get("telegram_caption"),
+                "_note": ("Уже опубликовано СЕГОДНЯ утром. НЕ делай опрос про факт "
+                          "или ответ, которые уже названы в этом тексте — тему "
+                          "можно затронуть, но проверяемый факт должен быть новым."),
+            }
+            for p in posts
+            if state.kind_of(p) == "daily" and p.get("ww2_date") == d["iso"]
+        ),
+        None,
+    )
 
     recent_polls = [
         {
@@ -48,6 +70,7 @@ def main() -> None:
     payload = {
         "date": d,
         "events_today": gathered["combined"],
+        "todays_morning_post": todays_morning_post,
         "recent_posts": recent_posts,
         "recent_polls": recent_polls,
     }
@@ -56,6 +79,8 @@ def main() -> None:
 
     print(f"Channel date: {d['ru_human']} ({d['iso']})")
     print(f"Recent posts (≤{RECENT_POST_DAYS}d): {len(recent_posts)}")
+    print("Today's morning post:",
+          "found — poll must avoid its facts" if todays_morning_post else "none yet")
     print(f"Known polls for anti-repeat: {len(recent_polls)}")
     print(f"\nWrote {CTX_PATH}")
 

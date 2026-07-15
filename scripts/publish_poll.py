@@ -21,11 +21,57 @@ import datetime
 import json
 import os
 import random
+import re
 
 import _bootstrap  # noqa: F401
 from ww2daily import state, telegram
 
 POLL = os.path.join(_bootstrap.RUN_DIR, "poll.json")
+
+
+def _content_words(text: str) -> set[str]:
+    """Significant word stems (length >= 5, tags stripped, de-cased)."""
+    if not text:
+        return set()
+    plain = re.sub(r"<[^>]+>", " ", text)
+    words = re.findall(r"[0-9A-Za-zА-Яа-яЁё]{5,}", plain.lower())
+    # Compare on a 5-char prefix so ru inflections (Флёров/Флёрова) still match.
+    return {w[:5] for w in words}
+
+
+def _overlap_warning(poll: dict) -> str | None:
+    """Deterministic backstop against overlap with the SAME channel-date morning
+    post. Fires when either (a) the poll is centred on the same event — the
+    question shares many distinctive terms with the post — or (b) the correct
+    answer's substance already appears in the post."""
+    ww2 = poll.get("ww2_date")
+    post = next(
+        (p for p in state.load().get("posts", [])
+         if state.kind_of(p) == "daily" and p.get("ww2_date") == ww2),
+        None,
+    )
+    if not post:
+        return None
+    post_words = _content_words(post.get("telegram_caption", ""))
+    if not post_words:
+        return None
+
+    # (a) Question centred on the morning post's event.
+    q_hit = _content_words(poll.get("question", "")) & post_words
+    if len(q_hit) >= 4:
+        return ("the question is built around the same event as today's morning "
+                f"post (shared terms: {', '.join(sorted(q_hit))}). Subscribers "
+                "just read it. Ask about a different event/detail of the period.")
+
+    # (b) Answer substance lifted straight from the post.
+    answer_words = _content_words(poll["options"][poll["correct_index"]])
+    a_hit = answer_words & post_words
+    if answer_words and len(a_hit) >= max(2, round(0.6 * len(answer_words))):
+        return ("the correct answer's key terms "
+                f"({', '.join(sorted(a_hit))}) already appear in today's morning "
+                "post — the poll tests a fact subscribers just read. "
+                "Pick a fact NOT stated in that post.")
+    return None
 
 
 def main() -> None:
@@ -56,6 +102,12 @@ def main() -> None:
     if len(correct_text) == lengths[-1] and lengths[-1] - lengths[-2] > 12:
         print("WARNING: the correct option is noticeably the longest — "
               "rebalance option lengths so the answer isn't guessable.")
+
+    # Guard against overlap with the same-day morning post (subscribers just
+    # read it — quizzing its facts is a give-away and feels repetitive).
+    overlap = _overlap_warning(poll)
+    if overlap:
+        print("WARNING:", overlap)
 
     telegram.send_poll(
         question=poll["question"],
