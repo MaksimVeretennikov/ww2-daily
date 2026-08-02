@@ -80,19 +80,27 @@ def main() -> None:
         telegram.send_message(caption)  # text-only fallback
 
     # --- cross-post to X: prefer Buffer webhook (with the Commons image URL),
-    # otherwise the X API directly; both are no-ops unless configured. ---
+    # otherwise the X API directly; both are no-ops unless configured. A
+    # failure here must never lose the Telegram post that already went out,
+    # so cross-posting is best-effort. ---
     x_result = {"skipped": "no_text"}
     if draft.get("post_x"):
         # Prefer the 1200px thumbnail for X (full Commons originals can exceed
         # the platform's image size limit).
         image_url = (chosen.get("thumb_url") or chosen.get("image_url")) if chosen else None
-        if buffer.is_enabled():
-            x_result = buffer.post(draft["post_x"], image_url)
-        else:
-            x_result = twitter.post(draft["post_x"], image_path)
+        try:
+            if buffer.is_enabled():
+                x_result = buffer.post(draft["post_x"], image_url)
+            else:
+                x_result = twitter.post(draft["post_x"], image_path)
+        except Exception as exc:
+            x_result = {"ok": False, "error": str(exc)}
 
     # --- cross-post to VK community (Russian text + the same photo file) ---
-    vk_result = vk.post(caption, image_path) if vk.is_enabled() else {"skipped": "vk_disabled"}
+    try:
+        vk_result = vk.post(caption, image_path) if vk.is_enabled() else {"skipped": "vk_disabled"}
+    except Exception as exc:
+        vk_result = {"ok": False, "error": str(exc)}
 
     # --- remember ---
     record = {
