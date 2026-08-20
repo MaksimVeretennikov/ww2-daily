@@ -92,3 +92,5 @@ USER_AGENT = (
     "WW2DailyBot/1.0 (https://t.me/ww2_dnevnik; daily WW2 history channel)"
 )
 HTTP_TIMEOUT = 30
+HTTP_RETRIES = 5
+HTTP_RETRY_BASE_DELAY = 4
