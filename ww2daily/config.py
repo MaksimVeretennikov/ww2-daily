@@ -41,6 +41,12 @@ POLL_HISTORY_CONTEXT = 40
 PHOTO_MAX_YEAR = 1950
 # How many Commons candidates to keep for Claude to choose from.
 PHOTO_CANDIDATES = 8
+# Width of the thumbnail we ask Commons for — and the file we actually publish.
+# Wikimedia serves a fixed set of standard widths straight from cache and asks
+# bots to use those instead of full-resolution originals (its 429 responses say
+# so outright). 1280 is such a standard width, and Telegram downscales anything
+# wider anyway, so the original buys us nothing but throttling.
+PHOTO_THUMB_WIDTH = 1280
 
 # --- History / context -------------------------------------------------------
 
@@ -92,3 +98,13 @@ USER_AGENT = (
     "WW2DailyBot/1.0 (https://t.me/ww2_dnevnik; daily WW2 history channel)"
 )
 HTTP_TIMEOUT = 30
+
+# Retries for rate-limited / transient failures (see http.py). Wikimedia
+# throttles the shared egress IP of cloud sessions in short bursts, so a few
+# backed-off attempts are the difference between a photo and a text-only post.
+HTTP_RETRIES = 4            # extra attempts after the first one
+HTTP_BACKOFF = 2            # seconds before the first retry, doubled after each
+HTTP_RETRY_MAX_WAIT = 20    # cap per wait: Retry-After asks for 600, which a
+                            # run fetching a dozen images cannot sit out
+HTTP_RETRY_BUDGET = 150     # total seconds a single run may spend waiting, so
+                            # a long throttling window can't stall the routine

@@ -20,7 +20,7 @@ API = "https://commons.wikimedia.org/w/api.php"
 _IMAGEINFO = {
     "prop": "imageinfo",
     "iiprop": "url|mime|extmetadata",
-    "iiurlwidth": "1200",
+    "iiurlwidth": str(config.PHOTO_THUMB_WIDTH),
     "format": "json",
     "origin": "*",
 }
@@ -124,6 +124,15 @@ def find_candidates(image_prompt: str,
         if len(candidates) >= config.PHOTO_CANDIDATES:
             break
     return candidates
+
+
+def photo_url(cand: dict) -> str | None:
+    """The URL to download when publishing a candidate.
+
+    Prefer the standard-width thumbnail over the full-resolution original:
+    Wikimedia serves standard sizes from cache and throttles bulk fetches of
+    originals (HTTP 429), which is exactly how a post loses its photo."""
+    return cand.get("thumb_url") or cand.get("image_url")
 
 
 def download(url: str, dest: str) -> str:

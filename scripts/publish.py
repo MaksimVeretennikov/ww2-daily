@@ -2,9 +2,9 @@
 """Final step of the daily run.
 
 Reads run/draft.json (written by Claude: the composed Telegram caption, the X
-text, the chosen image and a topic label), downloads the full-resolution image,
-posts to Telegram (and optionally X), then appends the record to state/history
-so the photo and topic are never reused.
+text, the chosen image and a topic label), gets the image file, posts to
+Telegram (and optionally X), then appends the record to state/history so the
+photo and topic are never reused.
 
 draft.json schema:
 {
@@ -32,6 +32,32 @@ FINAL_IMG = os.path.join(_bootstrap.RUN_DIR, "final_image")
 def _load(path: str) -> dict | list:
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def _resolve_image(chosen: dict) -> str | None:
+    """Local image file to publish, or None if nothing could be fetched.
+
+    Cheapest source first: the thumbnail find_photo.py already downloaded (and
+    Claude already looked at), then a fresh download of the standard-width
+    thumbnail, and only as a last resort the full-resolution original — the one
+    Wikimedia throttles."""
+    local = chosen.get("local_path")
+    if local and os.path.exists(local):
+        return local
+
+    urls: list[str] = []
+    for url in (commons.photo_url(chosen), chosen.get("image_url")):
+        if url and url not in urls:
+            urls.append(url)
+
+    for url in urls:
+        ext = os.path.splitext(url.split("?")[0])[1] or ".jpg"
+        dest = FINAL_IMG + ext
+        try:
+            return commons.download(url, dest)
+        except Exception as exc:
+            print(f"Could not download {url[:90]}: {exc}")
+    return None
 
 
 def main() -> None:
@@ -65,13 +91,10 @@ def main() -> None:
         chosen = next((c for c in candidates if c.get("index") == idx), None)
         if chosen is None:
             raise SystemExit(f"image_index {idx} not found in candidates.json")
-        url = chosen.get("image_url") or chosen.get("thumb_url")
-        ext = os.path.splitext(url.split("?")[0])[1] or ".jpg"
-        image_path = FINAL_IMG + ext
-        try:
-            commons.download(url, image_path)
-        except Exception:
-            image_path = chosen.get("local_path")  # fall back to thumbnail
+        image_path = _resolve_image(chosen)
+        if image_path is None:
+            print("WARNING: could not fetch the chosen image — "
+                  "posting text-only.")
 
     # --- publish ---
     if image_path:
@@ -85,9 +108,9 @@ def main() -> None:
     # so cross-posting is best-effort. ---
     x_result = {"skipped": "no_text"}
     if draft.get("post_x"):
-        # Prefer the 1200px thumbnail for X (full Commons originals can exceed
-        # the platform's image size limit).
-        image_url = (chosen.get("thumb_url") or chosen.get("image_url")) if chosen else None
+        # Prefer the standard-width thumbnail for X (full Commons originals
+        # can exceed the platform's image size limit).
+        image_url = commons.photo_url(chosen) if chosen else None
         try:
             if buffer.is_enabled():
                 x_result = buffer.post(draft["post_x"], image_url)
