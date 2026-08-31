@@ -16,10 +16,25 @@ import json
 import os
 
 import _bootstrap  # noqa: F401
-from ww2daily import commons, state
+from ww2daily import commons, http, state
 
 CAND_DIR = os.path.join(_bootstrap.RUN_DIR, "candidates")
 CAND_JSON = os.path.join(_bootstrap.RUN_DIR, "candidates.json")
+
+
+def _fetch_preview(cand: dict) -> None:
+    """Download the candidate's thumbnail into run/candidates/ so Claude can
+    look at it. Records the failure instead of raising: one refused preview
+    must not cost the run its other candidates."""
+    ext = os.path.splitext(cand["thumb_url"].split("?")[0])[1] or ".jpg"
+    local = os.path.join(CAND_DIR, f"cand_{cand['index']}{ext}")
+    try:
+        commons.download(cand["thumb_url"], local)
+        cand["local_path"] = local
+        cand.pop("download_error", None)
+    except Exception as exc:
+        cand["local_path"] = None
+        cand["download_error"] = str(exc)
 
 
 def main() -> None:
@@ -34,14 +49,17 @@ def main() -> None:
 
     for i, c in enumerate(cands):
         c["index"] = i
-        ext = os.path.splitext(c["thumb_url"].split("?")[0])[1] or ".jpg"
-        local = os.path.join(CAND_DIR, f"cand_{i}{ext}")
-        try:
-            commons.download(c["thumb_url"], local)
-            c["local_path"] = local
-        except Exception as exc:
-            c["local_path"] = None
-            c["download_error"] = str(exc)
+        _fetch_preview(c)
+
+    # Wikimedia throttles the shared egress IP of cloud sessions in bursts, so
+    # previews it refused a moment ago often arrive on a second pass — and a
+    # preview Claude cannot look at is a photo chosen blind.
+    missing = [c for c in cands if not c.get("local_path")]
+    if missing:
+        print(f"Retrying {len(missing)} preview(s) Wikimedia refused…")
+        http.reset_budget()
+        for c in missing:
+            _fetch_preview(c)
 
     with open(CAND_JSON, "w", encoding="utf-8") as fh:
         json.dump(cands, fh, ensure_ascii=False, indent=2)
@@ -55,6 +73,11 @@ def main() -> None:
     print(f"\nWrote {CAND_JSON}")
     if not cands:
         print("\nWARNING: no fresh candidates. Broaden the image prompt and retry.")
+    elif all(not c.get("local_path") for c in cands):
+        print("\nWARNING: Wikimedia refused every preview (rate limiting), so "
+              "there is nothing to look at. Pick by title/description and "
+              "publish anyway: publish.py falls back to letting Telegram fetch "
+              "the file from Commons itself.")
 
 
 if __name__ == "__main__":

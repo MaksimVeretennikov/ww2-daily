@@ -47,6 +47,9 @@ PHOTO_CANDIDATES = 8
 # so outright). 1280 is such a standard width, and Telegram downscales anything
 # wider anyway, so the original buys us nothing but throttling.
 PHOTO_THUMB_WIDTH = 1280
+# Narrower fallback width, tried when a service refuses the default thumbnail —
+# Telegram will not fetch a file larger than 5 MB from a URL.
+PHOTO_FALLBACK_WIDTH = 800
 
 # --- History / context -------------------------------------------------------
 

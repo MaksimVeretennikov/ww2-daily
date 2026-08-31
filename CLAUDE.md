@@ -61,7 +61,11 @@ applies to polls too.
 - Secrets come from environment variables (see `.env.example`); never commit them.
 - `run/` holds per-run working files and is git-ignored.
 - State (`state/history.json`) is the channel's memory and MUST be committed back
-  after each successful post — it powers photo and topic de-duplication.
+  after each successful post — it powers photo and topic de-duplication. Only a
+  photo that actually went out is recorded as used.
+- Wikimedia rate-limits image downloads from the shared cloud egress IP (429).
+  `publish.py` therefore falls back to letting Telegram fetch the Commons URL
+  itself, and drops the italic photo-caption line if a post ends up text-only.
 - `DRY_RUN=1` makes the pipeline print instead of posting; use it for testing.
 
 ## Setup / operations

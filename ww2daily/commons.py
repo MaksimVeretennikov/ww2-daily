@@ -135,6 +135,25 @@ def photo_url(cand: dict) -> str | None:
     return cand.get("thumb_url") or cand.get("image_url")
 
 
+def thumb_url(title: str, width: int) -> str | None:
+    """A standard-width thumbnail URL for a Commons file title.
+
+    Asked of the API — the host that is not throttled — because hand-built
+    thumbnail paths are answered with HTTP 400. Useful as a smaller second try
+    when a service refuses the default one (Telegram will not fetch a file over
+    5 MB by URL)."""
+    data = http.get_json(API, params={
+        "action": "query", "titles": title, "prop": "imageinfo",
+        "iiprop": "url", "iiurlwidth": str(width),
+        "format": "json", "origin": "*",
+    })
+    for page in ((data.get("query") or {}).get("pages", {})).values():
+        info = (page.get("imageinfo") or [{}])[0]
+        if info.get("thumburl"):
+            return info["thumburl"]
+    return None
+
+
 def download(url: str, dest: str) -> str:
     resp = http.get(url)
     resp.raise_for_status()

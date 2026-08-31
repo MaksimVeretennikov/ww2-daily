@@ -7,6 +7,25 @@ must stay within Telegram's 1024-character caption limit."""
 from . import config, http
 
 
+class TelegramRejected(RuntimeError):
+    """Telegram received the request and refused it.
+
+    Distinct from a network failure, where we cannot tell whether the message
+    went out: only a rejection is safe to recover from by sending something
+    else instead."""
+
+
+def _result(resp) -> dict:
+    """The API payload, or TelegramRejected if Telegram refused the request."""
+    if 400 <= resp.status_code < 500:
+        raise TelegramRejected(f"HTTP {resp.status_code}: {resp.text[:300]}")
+    resp.raise_for_status()
+    payload = resp.json()
+    if not payload.get("ok"):
+        raise TelegramRejected(f"Telegram error: {payload}")
+    return payload
+
+
 def build_caption(photo_caption: str, post_body: str) -> str:
     photo_caption = (photo_caption or "").strip()
     post_body = (post_body or "").strip()
@@ -19,9 +38,12 @@ def _api(method: str) -> str:
     return f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/{method}"
 
 
-def send_photo(photo_path: str, caption: str,
+def send_photo(photo: str, caption: str,
                channel: str | None = None) -> dict:
-    """Send a local photo file with an HTML caption to the channel."""
+    """Send a photo with an HTML caption: a local file, or an http(s) URL.
+
+    Passing a URL hands the download to Telegram's own servers — which is how a
+    post keeps its picture when Wikimedia is throttling our egress IP."""
     channel = channel or config.TELEGRAM_CHANNEL
     if len(caption) > config.TG_CAPTION_HARD_CAP:
         raise ValueError(
@@ -29,22 +51,26 @@ def send_photo(photo_path: str, caption: str,
             f"{config.TG_CAPTION_HARD_CAP} limit. Shorten the post or caption."
         )
     if config.DRY_RUN:
-        print(f"[DRY_RUN] sendPhoto -> {channel}\nphoto: {photo_path}\n"
+        print(f"[DRY_RUN] sendPhoto -> {channel}\nphoto: {photo}\n"
               f"caption ({len(caption)} chars):\n{caption}")
         return {"ok": True, "dry_run": True}
 
-    with open(photo_path, "rb") as fh:
+    data = {"chat_id": channel, "caption": caption, "parse_mode": "HTML"}
+    if photo.startswith(("http://", "https://")):
         resp = http.session().post(
             _api("sendPhoto"),
-            data={"chat_id": channel, "caption": caption, "parse_mode": "HTML"},
-            files={"photo": fh},
+            data={**data, "photo": photo},
             timeout=config.HTTP_TIMEOUT,
         )
-    resp.raise_for_status()
-    payload = resp.json()
-    if not payload.get("ok"):
-        raise RuntimeError(f"Telegram error: {payload}")
-    return payload
+    else:
+        with open(photo, "rb") as fh:
+            resp = http.session().post(
+                _api("sendPhoto"),
+                data=data,
+                files={"photo": fh},
+                timeout=config.HTTP_TIMEOUT,
+            )
+    return _result(resp)
 
 
 def send_message(text: str, channel: str | None = None) -> dict:
@@ -58,11 +84,7 @@ def send_message(text: str, channel: str | None = None) -> dict:
         data={"chat_id": channel, "text": text, "parse_mode": "HTML"},
         timeout=config.HTTP_TIMEOUT,
     )
-    resp.raise_for_status()
-    payload = resp.json()
-    if not payload.get("ok"):
-        raise RuntimeError(f"Telegram error: {payload}")
-    return payload
+    return _result(resp)
 
 
 def send_poll(question: str, options: list[str], correct_option_id: int,
@@ -107,8 +129,4 @@ def send_poll(question: str, options: list[str], correct_option_id: int,
         data["explanation"] = explanation
     resp = http.session().post(_api("sendPoll"), data=data,
                                timeout=config.HTTP_TIMEOUT)
-    resp.raise_for_status()
-    payload = resp.json()
-    if not payload.get("ok"):
-        raise RuntimeError(f"Telegram error: {payload}")
-    return payload
+    return _result(resp)

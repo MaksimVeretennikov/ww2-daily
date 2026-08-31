@@ -21,6 +21,16 @@ RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 _budget = config.HTTP_RETRY_BUDGET
 
 
+def reset_budget() -> None:
+    """Give the process a fresh waiting budget.
+
+    For a step that is worth waiting out a second time — retrying the previews
+    Claude has to look at, say — where the alternative is not a slower run but
+    a worse post."""
+    global _budget
+    _budget = config.HTTP_RETRY_BUDGET
+
+
 def session() -> requests.Session:
     global _session
     if _session is None:
