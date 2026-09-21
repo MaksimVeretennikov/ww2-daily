@@ -199,6 +199,8 @@ def main() -> None:
         "image_title": chosen.get("title") if photo_sent else None,
         "image_url": chosen.get("image_url") if photo_sent else None,
     }
+    if vk_result.get("post_id"):
+        record["vk_post_id"] = vk_result["post_id"]
     if not config.DRY_RUN:
         state.append(record)
         print("Appended record to", config.STATE_PATH)

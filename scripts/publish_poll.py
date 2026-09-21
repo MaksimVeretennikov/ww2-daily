@@ -5,6 +5,11 @@ Reads run/poll.json (written by Claude), shuffles the options so the correct
 answer's position is random, sanity-checks the "longest option is the answer"
 tell, posts a quiz-mode poll, and records it so future polls don't repeat.
 
+If VK is configured, the same poll also goes to the VK community. VK has no
+quiz mode, so there it is a plain poll, and the previous poll's answer (with
+the explanation) is revealed as a community comment under that earlier post —
+so every VK poll gets its answer a day later.
+
 poll.json schema:
 {
   "ww2_date": "1941-06-21",
@@ -24,7 +29,7 @@ import random
 import re
 
 import _bootstrap  # noqa: F401
-from ww2daily import state, telegram
+from ww2daily import config, state, telegram, vk
 
 POLL = os.path.join(_bootstrap.RUN_DIR, "poll.json")
 
@@ -74,6 +79,33 @@ def _overlap_warning(poll: dict) -> str | None:
     return None
 
 
+VK_POLL_INTRO = "Викторина. Верный ответ и пояснение — завтра в комментариях."
+
+
+def _reveal_previous_vk_answer(polls: dict) -> dict:
+    """Post yesterday's answer under yesterday's VK poll post (if any).
+
+    Whatever happens here must not stop today's poll: a failure is reported
+    and the reveal is retried on the next run."""
+    pending = [p for p in polls.get("polls", [])
+               if p.get("vk_post_id") and not p.get("vk_answer_revealed")]
+    if not pending:
+        return {"skipped": "nothing_to_reveal"}
+    prev = pending[-1]
+    answer = prev["options"][prev["correct_index"]]
+    text = f"Верный ответ: {answer}"
+    if prev.get("explanation"):
+        text += f"\n\n{prev['explanation']}"
+    try:
+        result = vk.reveal_answer(prev["vk_post_id"], text)
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    if result.get("ok") and not config.DRY_RUN:
+        prev["vk_answer_revealed"] = True
+        state.save_polls(polls)
+    return result
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--poll", default=POLL)
@@ -116,6 +148,16 @@ def main() -> None:
         explanation=poll.get("explanation"),
     )
 
+    # --- VK: reveal yesterday's answer, then mirror today's poll. Best-effort:
+    # the Telegram poll already went out and must be recorded regardless. ---
+    vk_reveal = vk_result = {"skipped": "vk_disabled"}
+    if vk.is_enabled():
+        vk_reveal = _reveal_previous_vk_answer(polls)
+        try:
+            vk_result = vk.post_poll(poll["question"], options, VK_POLL_INTRO)
+        except Exception as exc:
+            vk_result = {"ok": False, "error": str(exc)}
+
     record = {
         "date": today,
         "ww2_date": poll.get("ww2_date"),
@@ -125,12 +167,16 @@ def main() -> None:
         "correct_index": correct_index,
         "explanation": poll.get("explanation", ""),
     }
-    from ww2daily import config
+    if vk_result.get("post_id"):
+        record["vk_post_id"] = vk_result["post_id"]
+        record["vk_poll_id"] = vk_result.get("poll_id")
     if not config.DRY_RUN:
-        state.append_poll(record)
+        state.append_poll(record, polls)
         print("Recorded poll in", config.POLLS_PATH)
     else:
         print("[DRY_RUN] would record:", json.dumps(record, ensure_ascii=False))
+    print("VK reveal:", vk_reveal)
+    print("VK result:", vk_result)
 
 
 if __name__ == "__main__":

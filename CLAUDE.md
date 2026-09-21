@@ -14,7 +14,8 @@ the skill in `.claude/skills/daily-post/`. The session:
    done by Claude, not by an external API);
 3. runs `scripts/find_photo.py` to get de-duplicated Commons candidates, then
    **looks at the images** and picks the best one;
-4. runs `scripts/publish.py` to post to Telegram (and optionally X);
+4. runs `scripts/publish.py` to post to Telegram (and optionally X and a VK
+   community via `ww2daily/vk.py`);
 5. commits the updated `state/history.json` so the next run remembers it.
 
 Deterministic plumbing lives in the `ww2daily/` package; judgement (writing,
@@ -49,7 +50,9 @@ A third routine at 15:00 runs the `daily-poll` skill: one Telegram quiz-mode pol
 in. `scripts/poll_context.py` supplies the date, recent posts (~2 weeks) and
 recent poll questions; `scripts/publish_poll.py` posts it, shuffles option order
 so the answer's position is random, warns if the correct option is the longest
-(the classic tell), and records it. Poll memory is `state/polls.json` (seeded once
+(the classic tell), and records it. With VK configured it also mirrors the poll
+to the VK community (no quiz mode there) and reveals the previous poll's answer
+as a community comment. Poll memory is `state/polls.json` (seeded once
 from Airtable via `scripts/import_polls.py`). The diary "no looking ahead" rule
 applies to polls too.
 

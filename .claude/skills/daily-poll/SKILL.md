@@ -71,6 +71,10 @@ python scripts/poll_context.py
 ```bash
 python scripts/publish_poll.py
 ```
+Если настроен VK (`VK_ACCESS_TOKEN`/`VK_GROUP_ID`), скрипт сам зеркалит опрос в
+сообщество VK и дописывает ответ на **вчерашний** VK-опрос комментарием. Ничего
+дополнительно делать не нужно; строки `VK reveal:`/`VK result:` в выводе — для
+контроля, ошибка там не отменяет Telegram-опрос.
 
 ### Шаг 5. Сохранить память
 ```bash

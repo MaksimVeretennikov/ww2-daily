@@ -84,6 +84,10 @@ VK_ACCESS_TOKEN = os.environ.get("VK_ACCESS_TOKEN", "")
 VK_GROUP_ID = os.environ.get("VK_GROUP_ID", "")   # numeric community id (positive)
 VK_FOOTER = os.environ.get("VK_FOOTER", "")        # e.g. a link back to Telegram
 VK_API_VERSION = "5.199"
+# VK has no quiz polls: the daily quiz goes out as a plain poll that closes
+# after this many hours (0 = never), and the answer is revealed the next day
+# as a community comment under the poll post.
+VK_POLL_HOURS = int(os.environ.get("VK_POLL_HOURS", "24") or 0)
 
 X_CREDENTIALS = {
     "api_key": os.environ.get("X_API_KEY", ""),
