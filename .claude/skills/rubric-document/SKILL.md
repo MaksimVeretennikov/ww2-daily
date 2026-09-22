@@ -51,7 +51,7 @@ python scripts/find_photo.py --image-prompt "<image_prompt>" --category-prompt "
 
 ### Шаг 5. Сохранить память
 ```bash
-git add state/history.json && git commit -m "rubric/document: {topic}" && git push origin HEAD:main
+git add state/history.json docs/ && git commit -m "rubric/document: {topic}" && git push origin HEAD:main
 ```
 
 ## Правила

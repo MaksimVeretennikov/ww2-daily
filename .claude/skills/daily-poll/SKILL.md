@@ -78,7 +78,7 @@ python scripts/publish_poll.py
 
 ### Шаг 5. Сохранить память
 ```bash
-git add state/
+git add state/ docs/
 git commit -m "poll: {theme} ({date.ru_human})"
 git push origin HEAD:main || git push -u origin HEAD
 ```

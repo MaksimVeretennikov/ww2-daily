@@ -65,7 +65,7 @@ python scripts/publish.py
 
 ### Шаг 5. Сохранить память
 ```bash
-git add state/history.json
+git add state/history.json docs/
 git commit -m "rubric/person: {subject} ({facts.date.ru_human})"
 git push origin HEAD:main
 ```

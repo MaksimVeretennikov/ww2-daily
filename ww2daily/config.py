@@ -101,6 +101,18 @@ X_CREDENTIALS = {
     "bearer_token": os.environ.get("X_BEARER_TOKEN", ""),
 }
 
+# --- RSS feed (VK import, Дзен) ---------------------------------------------
+
+# Served by GitHub Pages from docs/ (Settings → Pages → branch main, /docs).
+FEED_BASE_URL = os.environ.get(
+    "FEED_BASE_URL", "https://maksimveretennikov.github.io/ww2-daily/")
+FEED_PATH = os.environ.get("FEED_PATH", "docs/feed.xml")
+FEED_IMG_DIR = os.path.join(os.path.dirname(FEED_PATH), "img")
+FEED_TITLE = "Дневник Второй Мировой"
+FEED_DESCRIPTION = "Что происходило во Второй мировой ровно 85 лет назад — каждый день"
+FEED_LINK = "https://t.me/ww2_dnevnik"      # where an imported item points to
+FEED_MAX_ITEMS = 30
+
 # --- HTTP --------------------------------------------------------------------
 
 # A descriptive User-Agent is required by Wikimedia APIs and is good manners

@@ -23,7 +23,7 @@ import os
 import re
 
 import _bootstrap  # noqa: F401
-from ww2daily import buffer, commons, config, state, telegram, twitter, vk
+from ww2daily import buffer, commons, config, feed, state, telegram, twitter, vk
 
 DRAFT = os.path.join(_bootstrap.RUN_DIR, "draft.json")
 CAND_JSON = os.path.join(_bootstrap.RUN_DIR, "candidates.json")
@@ -204,9 +204,14 @@ def main() -> None:
     }
     if vk_result.get("post_id"):
         record["vk_post_id"] = vk_result["post_id"]
+    # --- RSS feed (VK imports it with the picture; see ww2daily/feed.py) ---
     if not config.DRY_RUN:
-        state.append(record)
+        record["feed_image"] = feed.stage_image(image_path, record) \
+            if photo_sent else None
+        data = state.append(record)
         print("Appended record to", config.STATE_PATH)
+        print("Feed rebuilt:", feed.write(data["posts"]),
+              "| image:", record["feed_image"])
     else:
         print("[DRY_RUN] would append:", json.dumps(record, ensure_ascii=False))
 

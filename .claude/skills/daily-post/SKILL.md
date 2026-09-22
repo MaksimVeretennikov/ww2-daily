@@ -134,7 +134,7 @@ python scripts/publish.py
 в Шаге 0 ты уже собрал полную память со всех веток, этот коммит заодно переносит
 в `main` всё, что осело на ветках `claude/*` (вчерашние опрос и рубрику):
 ```bash
-git add state/
+git add state/ docs/
 git commit -m "post: <ru_human> — <topic>"
 git push origin HEAD:main || git push -u origin HEAD
 ```

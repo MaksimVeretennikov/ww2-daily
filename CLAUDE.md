@@ -16,7 +16,8 @@ the skill in `.claude/skills/daily-post/`. The session:
    **looks at the images** and picks the best one;
 4. runs `scripts/publish.py` to post to Telegram (and optionally X and a VK
    community via `ww2daily/vk.py`);
-5. commits the updated `state/history.json` so the next run remembers it.
+5. commits the updated `state/history.json` (and `docs/`, the RSS feed VK
+   imports with the photo — see `ww2daily/feed.py`) so the next run remembers it.
 
 Deterministic plumbing lives in the `ww2daily/` package; judgement (writing,
 photo choice) is the model's. The full daily procedure and the writing rules are
