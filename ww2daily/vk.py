@@ -41,8 +41,17 @@ def is_enabled() -> bool:
 
 
 def posts_enabled() -> bool:
-    """Whether the daily post and rubrics are mirrored (VK_MIRROR=all)."""
-    return is_enabled() and config.VK_MIRROR != "polls"
+    """Whether the daily post and rubrics go to VK through the API.
+
+    Default ("auto"): only with a user token. A community key would post them
+    text-only, and the RSS import delivers the same posts with the photo."""
+    if not is_enabled():
+        return False
+    if config.VK_MIRROR == "all":
+        return True
+    if config.VK_MIRROR == "polls":
+        return False
+    return token_kind() == "user"
 
 
 def group_id() -> str:
