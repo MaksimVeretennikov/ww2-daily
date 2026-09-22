@@ -20,8 +20,8 @@ def main() -> None:
     if vk.token_kind() == "user":
         print("\nVK setup OK: posts with uploaded photos and real polls will cross-post.")
     else:
-        print("\nVK setup OK (community key): posts with photos and text "
-              "quizzes will cross-post.")
+        print("\nVK setup OK (community key): text posts and text quizzes will "
+              "cross-post; for photos you need a user token (see README).")
 
 
 if __name__ == "__main__":

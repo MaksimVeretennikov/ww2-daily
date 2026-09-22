@@ -177,10 +177,13 @@ def main() -> None:
     # --- cross-post to VK community (Russian text + the same photo file).
     # VK needs the bytes, so a photo Telegram fetched by URL cannot go there:
     # in that case VK gets the text without the photo caption line. ---
-    vk_text = caption if image_path else _without_photo_caption(caption)
+    # A community key cannot attach the photo, so its post must not open with
+    # the caption of a picture nobody sees.
+    with_photo = image_path and vk.is_enabled() and vk.token_kind() == "user"
+    vk_text = caption if with_photo else _without_photo_caption(caption)
     try:
-        vk_result = vk.post(vk_text, image_path) if vk.is_enabled() \
-            else {"skipped": "vk_disabled"}
+        vk_result = vk.post(vk_text, image_path) if vk.posts_enabled() \
+            else {"skipped": "vk_disabled" if not vk.is_enabled() else "vk_mirror_polls"}
     except Exception as exc:
         vk_result = {"ok": False, "error": str(exc)}
 

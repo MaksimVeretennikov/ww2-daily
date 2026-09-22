@@ -3,10 +3,10 @@
 Two kinds of token work here, and the module adapts to whichever it is given:
 
 * a COMMUNITY token («Управление → Работа с API → Ключи доступа», rights
-  «Стена» + «Фотографии»). Always obtainable in a minute. It cannot use the
-  wall upload server (error 27), so photos go through the messages upload
-  server instead — the resulting photo belongs to the community and attaches
-  to the post. It cannot create polls (polls.create is user-only), so the quiz
+  «Стена» + «Фотографии»). Always obtainable in a minute, but VK gives it no
+  way to put a photo on the wall (every upload server but stories answers
+  error 27, and a messages-album photo renders as text in the feed), so posts
+  go out text-only, and the quiz — which it cannot create as a poll either —
   goes out as a text post that invites answers in the comments;
 * a USER token (scopes wall,photos,groups,offline — via your own VK ID app;
   the old trick of borrowing another app's client_id is blocked by VK now).
@@ -38,6 +38,11 @@ class VKError(RuntimeError):
 
 def is_enabled() -> bool:
     return bool(config.VK_ACCESS_TOKEN and config.VK_GROUP_ID)
+
+
+def posts_enabled() -> bool:
+    """Whether the daily post and rubrics are mirrored (VK_MIRROR=all)."""
+    return is_enabled() and config.VK_MIRROR != "polls"
 
 
 def group_id() -> str:
@@ -91,25 +96,21 @@ def _with_footer(text: str) -> str:
 def _upload_photo(image_path: str, gid: str) -> str:
     """Upload a local file and return its `photo<owner>_<id>` attachment.
 
-    A user token goes through the wall upload server. A community key cannot
-    (error 27), but it can use the messages upload server, and the photo it
-    yields belongs to the community and attaches to a wall post just fine."""
-    if token_kind() == "user":
-        server = _call("photos.getWallUploadServer", group_id=gid)
-    else:
-        server = _call("photos.getMessagesUploadServer")
+    User token only. Verified against the API with a community key: every
+    upload server but stories answers error 27, and a photo pushed through
+    the messages upload server attaches but renders as plain text in the
+    feed — so a community key gets no photo at all rather than a phantom."""
+    if token_kind() != "user":
+        raise VKError(ERR_GROUP_AUTH, "a community key cannot upload wall photos")
+    server = _call("photos.getWallUploadServer", group_id=gid)
     with open(image_path, "rb") as fh:
         up = http.session().post(server["upload_url"],
                                  files={"photo": ("photo.jpg", fh, "image/jpeg")},
                                  timeout=config.HTTP_TIMEOUT).json()
     if not up.get("photo") or up["photo"] == "[]":
         raise RuntimeError(f"VK upload server rejected the file: {up}")
-    if token_kind() == "user":
-        saved = _call("photos.saveWallPhoto", group_id=gid, server=up["server"],
-                      photo=up["photo"], hash=up["hash"])
-    else:
-        saved = _call("photos.saveMessagesPhoto", server=up["server"],
-                      photo=up["photo"], hash=up["hash"])
+    saved = _call("photos.saveWallPhoto", group_id=gid, server=up["server"],
+                  photo=up["photo"], hash=up["hash"])
     p = saved[0]
     return f"photo{p['owner_id']}_{p['id']}"
 
@@ -132,11 +133,13 @@ def post(text: str, image_path: str | None = None) -> dict:
         return {"ok": True, "dry_run": True}
 
     attachments = ""
-    if image_path:
+    if image_path and token_kind() == "user":
         try:
             attachments = _upload_photo(image_path, gid)
         except Exception as exc:
             print("VK photo upload failed, posting text-only:", exc)
+    elif image_path:
+        print("VK: community key cannot attach photos — posting text-only.")
 
     resp = _call("wall.post", owner_id=f"-{gid}", from_group=1,
                  message=message, attachments=attachments)
@@ -248,9 +251,9 @@ def check() -> list[str]:
               f"(id{me.get('id')}); photos and polls fully supported")
     else:
         kind = "group"
-        print("token kind: COMMUNITY — photos via the messages upload server, "
-              "quizzes as text posts (answers in comments), answers revealed "
-              "by comment")
+        print("token kind: COMMUNITY — posts go out TEXT-ONLY (VK lets no "
+              "community key put a photo on the wall), quizzes as text posts "
+              "(answers in comments), answers revealed by comment")
 
     if kind == "user":
         try:

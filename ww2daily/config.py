@@ -88,6 +88,10 @@ VK_API_VERSION = "5.199"
 # after this many hours (0 = never), and the answer is revealed the next day
 # as a community comment under the poll post.
 VK_POLL_HOURS = int(os.environ.get("VK_POLL_HOURS", "24") or 0)
+# What to mirror: "all" (posts, rubrics and the quiz) or "polls" (the quiz
+# only — for when an external Telegram→VK crossposter already copies the
+# posts with their photos and a second copy would be a duplicate).
+VK_MIRROR = os.environ.get("VK_MIRROR", "all").strip().lower() or "all"
 
 X_CREDENTIALS = {
     "api_key": os.environ.get("X_API_KEY", ""),
