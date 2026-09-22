@@ -3,11 +3,11 @@
 Two kinds of token work here, and the module adapts to whichever it is given:
 
 * a COMMUNITY token («Управление → Работа с API → Ключи доступа», rights
-  «Стена» + «Фотографии»). Always obtainable in a minute, but VK does not let it
-  upload wall photos (photos.getWallUploadServer → error 27) or create polls
-  (polls.create is user-only). In this mode a post carries the photo as a link
-  card to its Commons page, and the quiz goes out as a text post that invites
-  answers in the comments;
+  «Стена» + «Фотографии»). Always obtainable in a minute. It cannot use the
+  wall upload server (error 27), so photos go through the messages upload
+  server instead — the resulting photo belongs to the community and attaches
+  to the post. It cannot create polls (polls.create is user-only), so the quiz
+  goes out as a text post that invites answers in the comments;
 * a USER token (scopes wall,photos,groups,offline — via your own VK ID app;
   the old trick of borrowing another app's client_id is blocked by VK now).
   Full mode: real photo attachments and real polls.
@@ -20,12 +20,10 @@ the next day as a comment from the community under that post
 import json
 import re
 import time
-import urllib.parse
 
 from . import config, http
 
 API = "https://api.vk.com/method/"
-COMMONS_FILE = "https://commons.wikimedia.org/wiki/"
 
 # VK error codes.
 ERR_GROUP_AUTH = 27      # "method is unavailable with group auth"
@@ -72,9 +70,10 @@ def token_kind() -> str:
     """'user' or 'group', probed once per process."""
     global _token_kind
     if _token_kind is None:
+        # A community key answers users.get with an empty list (or error 27
+        # on some methods); a user token returns its owner.
         try:
-            _call("users.get")
-            _token_kind = "user"
+            _token_kind = "user" if _call("users.get") else "group"
         except VKError as exc:
             _token_kind = "group" if exc.code == ERR_GROUP_AUTH else "user"
     return _token_kind
@@ -87,33 +86,40 @@ def _with_footer(text: str) -> str:
     return message
 
 
-def commons_page_url(title: str | None) -> str | None:
-    """Public page of a Commons file — VK renders it as a link card with the
-    picture, which is how a community token still shows the photo."""
-    if not title:
-        return None
-    return COMMONS_FILE + urllib.parse.quote(title.replace(" ", "_"), safe=":/()")
 
 
 def _upload_photo(image_path: str, gid: str) -> str:
-    server = _call("photos.getWallUploadServer", group_id=gid)
+    """Upload a local file and return its `photo<owner>_<id>` attachment.
+
+    A user token goes through the wall upload server. A community key cannot
+    (error 27), but it can use the messages upload server, and the photo it
+    yields belongs to the community and attaches to a wall post just fine."""
+    if token_kind() == "user":
+        server = _call("photos.getWallUploadServer", group_id=gid)
+    else:
+        server = _call("photos.getMessagesUploadServer")
     with open(image_path, "rb") as fh:
         up = http.session().post(server["upload_url"],
-                                 files={"photo": fh},
+                                 files={"photo": ("photo.jpg", fh, "image/jpeg")},
                                  timeout=config.HTTP_TIMEOUT).json()
-    saved = _call("photos.saveWallPhoto", group_id=gid,
-                  server=up["server"], photo=up["photo"], hash=up["hash"])
+    if not up.get("photo") or up["photo"] == "[]":
+        raise RuntimeError(f"VK upload server rejected the file: {up}")
+    if token_kind() == "user":
+        saved = _call("photos.saveWallPhoto", group_id=gid, server=up["server"],
+                      photo=up["photo"], hash=up["hash"])
+    else:
+        saved = _call("photos.saveMessagesPhoto", server=up["server"],
+                      photo=up["photo"], hash=up["hash"])
     p = saved[0]
     return f"photo{p['owner_id']}_{p['id']}"
 
 
-def post(text: str, image_path: str | None = None,
-         link: str | None = None) -> dict:
-    """Publish on the community wall.
+def post(text: str, image_path: str | None = None) -> dict:
+    """Publish on the community wall, with `image_path` uploaded as a photo.
 
-    `image_path` is uploaded as a real photo when the token allows it;
-    otherwise (community token, or a failed upload) `link` — the Commons page
-    of the picture — is attached instead, so the post still shows the frame."""
+    A failed upload degrades to a text post rather than losing the post: VK
+    refuses link cards to Wikimedia (link_photo_sizing_rule), so there is no
+    cheaper way to show the frame."""
     if not is_enabled():
         return {"ok": False, "skipped": "vk_not_configured"}
 
@@ -122,23 +128,20 @@ def post(text: str, image_path: str | None = None,
 
     if config.DRY_RUN:
         print(f"[DRY_RUN] VK wall.post -> club{gid}\nphoto: {image_path}\n"
-              f"link: {link}\n{message[:200]}…")
+              f"{message[:200]}…")
         return {"ok": True, "dry_run": True}
 
     attachments = ""
-    if image_path and token_kind() == "user":
+    if image_path:
         try:
             attachments = _upload_photo(image_path, gid)
         except Exception as exc:
-            print("VK photo upload failed, falling back to a link card:", exc)
-    if not attachments and link:
-        attachments = link
+            print("VK photo upload failed, posting text-only:", exc)
 
     resp = _call("wall.post", owner_id=f"-{gid}", from_group=1,
                  message=message, attachments=attachments)
     return {"ok": True, "post_id": resp.get("post_id"),
-            "photo": "uploaded" if attachments.startswith("photo")
-            else "link" if attachments else "none"}
+            "photo": "uploaded" if attachments else "none"}
 
 
 # --- polls -------------------------------------------------------------------
@@ -233,17 +236,21 @@ def check() -> list[str]:
 
     gid = group_id()
     try:
-        me = _call("users.get")[0]
-        kind = "user"
-        print(f"token kind: USER — {me.get('first_name')} {me.get('last_name')} "
-              f"(id{me.get('id')}); photos and polls fully supported")
+        users = _call("users.get")
     except VKError as exc:
         if exc.code != ERR_GROUP_AUTH:
             return [f"the token does not work ({exc})"]
+        users = []
+    if users:
+        kind = "user"
+        me = users[0]
+        print(f"token kind: USER — {me.get('first_name')} {me.get('last_name')} "
+              f"(id{me.get('id')}); photos and polls fully supported")
+    else:
         kind = "group"
-        print("token kind: COMMUNITY — posts go out with a link card instead of "
-              "an uploaded photo, quizzes as text posts (comments), answers "
-              "revealed by comment")
+        print("token kind: COMMUNITY — photos via the messages upload server, "
+              "quizzes as text posts (answers in comments), answers revealed "
+              "by comment")
 
     if kind == "user":
         try:

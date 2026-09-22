@@ -17,7 +17,11 @@ def main() -> None:
         for p in problems:
             print(" -", p)
         raise SystemExit(1)
-    print("\nVK setup OK: posts, photos and polls will cross-post.")
+    if vk.token_kind() == "user":
+        print("\nVK setup OK: posts with uploaded photos and real polls will cross-post.")
+    else:
+        print("\nVK setup OK (community key): posts with photos and text "
+              "quizzes will cross-post.")
 
 
 if __name__ == "__main__":
