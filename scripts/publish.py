@@ -175,11 +175,13 @@ def main() -> None:
             x_result = {"ok": False, "error": str(exc)}
 
     # --- cross-post to VK community (Russian text + the same photo file).
-    # VK needs the bytes, so a photo Telegram fetched by URL cannot go there:
-    # in that case VK gets the text without the photo caption line. ---
+    # With a user token the file is uploaded; otherwise (community token, or a
+    # photo Telegram fetched by URL) the Commons page goes along as a link
+    # card, so the frame is still visible. ---
     vk_text = caption if image_path else _without_photo_caption(caption)
+    vk_link = vk.commons_page_url(chosen.get("title")) if chosen else None
     try:
-        vk_result = vk.post(vk_text, image_path) if vk.is_enabled() \
+        vk_result = vk.post(vk_text, image_path, link=vk_link) if vk.is_enabled() \
             else {"skipped": "vk_disabled"}
     except Exception as exc:
         vk_result = {"ok": False, "error": str(exc)}

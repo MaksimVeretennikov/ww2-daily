@@ -93,6 +93,8 @@ def _reveal_previous_vk_answer(polls: dict) -> dict:
         return {"skipped": "nothing_to_reveal"}
     prev = pending[-1]
     answer = prev["options"][prev["correct_index"]]
+    if not prev.get("vk_poll_id"):          # text quiz: options were lettered
+        answer = f"{vk.LETTERS[prev['correct_index']]}) {answer}"
     text = f"Верный ответ: {answer}"
     if prev.get("explanation"):
         text += f"\n\n{prev['explanation']}"
@@ -169,7 +171,8 @@ def main() -> None:
     }
     if vk_result.get("post_id"):
         record["vk_post_id"] = vk_result["post_id"]
-        record["vk_poll_id"] = vk_result.get("poll_id")
+        if vk_result.get("poll_id"):
+            record["vk_poll_id"] = vk_result["poll_id"]
     if not config.DRY_RUN:
         state.append_poll(record, polls)
         print("Recorded poll in", config.POLLS_PATH)
