@@ -2243,6 +2243,19 @@
       "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Damaged_Marat.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
       "feed_image": "img/2026-09-23-daily.jpg",
       "feed_rev": 2
+    },
+    {
+      "date_posted": "2026-09-23",
+      "kind": "perspectives",
+      "subject": null,
+      "ww2_date": "1941-09-21",
+      "topic": "Sovinformburo announces the fall of Kiev on September 21 1941, two days after German communiques had already reported the city captured on September 19",
+      "telegram_caption": "<i>Немецкий часовой у Киевской крепости после взятия города. 1941 год</i>\n\n<b>Киев: два дня молчания</b>\n\n19 сентября 1941 года части группы армий «Юг» занимают Киев — обороняющие город войска уже отведены на восток, к кольцу окружения у Лохвицы.\n\nС немецкой стороны: о взятии столицы Украины вермахт сообщает практически сразу — сводки этих дней называют город захваченным, это подаётся как крупный успех похода на востоке.\n\nС советской стороны: Совинформбюро молчит два дня. Лишь 21 сентября выходит короткая, безликая формула: «После многодневных упорных боёв наши войска оставили город Киев» — без единой подробности, без упоминания уже почти неделю как окружённого восточнее города Юго-Западного фронта.\n\nИтог: для немецкой стороны падение Киева — повод для быстрой сводки-триумфа, для советской — новость, которую сначала не решаются произнести, а произнеся — говорят предельно сухо, не называя ни масштаба потерь, ни судьбы армий фронта в кольце.",
+      "post_x": "September 19-21, 1941 -- Kyiv fell to Army Group South on the 19th; German communiques reported it almost at once as a triumph. Sovinformburo stayed silent two days, then on the 21st issued one terse line -- our troops abandoned Kiev -- no details, no numbers.",
+      "image_pageid": 5435046,
+      "image_title": "File:Bundesarchiv Bild 183-L20208, Ukraine, Kiew, deutscher Wachposten auf der Zitadelle.jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c9/Bundesarchiv_Bild_183-L20208%2C_Ukraine%2C_Kiew%2C_deutscher_Wachposten_auf_der_Zitadelle.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "feed_image": null
     }
   ]
 }
