@@ -2308,6 +2308,19 @@
       "image_title": null,
       "image_url": null,
       "feed_image": null
+    },
+    {
+      "date_posted": "2026-09-26",
+      "kind": "daily",
+      "subject": null,
+      "ww2_date": "1941-09-26",
+      "topic": "German command declares the Battle of Kiev formally over, announcing about 665,000 Soviet prisoners and the destruction of four Southwestern Front armies (5th, 21st, 26th, 37th) -- the largest encirclement of the war so far",
+      "telegram_caption": "<i>Пленные красноармейцы с поднятыми руками сразу после захвата. Южный участок Восточного фронта, 1941 год</i>\n\n<b>26 сентября 1941</b>\n\nГерманское командование объявляет операцию под Киевом завершённой: неделя зачистки котла восточнее города окончена, самого кольца больше не существует.\n\nИтоговые цифры, которые называет группа армий «Юг», намного превышают прежние оценки: в плен взято около 665 тысяч советских военнослужащих — почти в полтора раза больше, чем говорилось неделю назад, в день падения города. В котле перестают существовать как боевая сила четыре армии Юго-Западного фронта — 5-я, 21-я, 26-я и 37-я.\n\nТакого числа пленных за одну операцию вермахт ещё не объявлял: киевский котёл становится крупнейшим окружением на Восточном фронте с начала войны.\n\nИтог дня: спустя неделю после падения города немецкое командование подводит черту под битвой за Киев — крупнейшим окружением войны, стоившим Юго-Западному фронту четырёх армий.",
+      "post_x": "September 26, 1941 -- German command declared the battle of Kiev formally over: about 665,000 Soviet troops taken prisoner, four armies of the Southwestern Front destroyed -- the largest single encirclement of the war so far.",
+      "image_pageid": 5408253,
+      "image_title": "File:Bundesarchiv Bild 101I-020-1268-10, Russland, Süd, Gefangennahme russischer Soldaten.jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Bundesarchiv_Bild_101I-020-1268-10%2C_Russland%2C_S%C3%BCd%2C_Gefangennahme_russischer_Soldaten.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "feed_image": "img/2026-09-26-daily.jpg"
     }
   ]
 }
