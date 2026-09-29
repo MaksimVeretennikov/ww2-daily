@@ -6,7 +6,7 @@ in WWII exactly 85 years ago, with an archival photo.
 
 ## How it runs
 
-A daily **Claude routine** (scheduled cloud session, Opus 4.8, max effort) runs
+A daily **Claude routine** (scheduled cloud session, Opus 5.5, xhigh effort) runs
 the skill in `.claude/skills/daily-post/`. The session:
 
 1. runs `scripts/fetch_sources.py` to gather facts for "today − 85 years";
