@@ -2438,6 +2438,19 @@
       "image_title": null,
       "image_url": null,
       "feed_image": null
+    },
+    {
+      "date_posted": "2026-10-01",
+      "kind": "daily",
+      "subject": null,
+      "ww2_date": "1941-10-01",
+      "topic": "Finnish forces capture Petrozavodsk; Moscow Three-Power conference ends with supply protocol, Oct 1 1941",
+      "telegram_caption": "<i>Финские солдаты у памятника Ленину возле школы в только что занятом Петрозаводске. 1 октября 1941, цветная реставрация</i>\n\n<b>1 октября 1941</b>\n\nКарельский фронт: финские части входят в Петрозаводск — столицу Карело-Финской ССР, лежащую на берегу Онежского озера. Город, который финны тут же переименуют в Äänislinna, его оставляют отходящие части 7-й армии.\n\nДля Красной армии это ещё одна потеря на севере: Петрозаводск стоял на железной дороге к Мурманску, а теперь она перерезана.\n\nВ тот же день в Москве завершается трёхсторонняя конференция: Молотов, Бивербрук и Гарриман подписывают протокол о поставках. Англия и США берут обязательство снабжать СССР танками, самолётами, алюминием и другим сырьём с октября 1941 по июнь 1942 года.\n\nИтог дня: на севере фронт теряет столицу Карелии, а в Москве — союзники письменно закрепляют объёмы помощи Москве.",
+      "post_x": "October 1, 1941 -- Finnish troops enter Petrozavodsk, capital of the Karelo-Finnish SSR, cutting the railway toward Murmansk. In Moscow, Molotov, Beaverbrook and Harriman sign the protocol on Allied supplies to the USSR.",
+      "image_pageid": 97861716,
+      "image_title": "File:Finnish lads hanging out with Lenin outside the Petrozavodsk agricultural technical school, Karelia, 1 October 1941. (50273836988).jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/a1/Finnish_lads_hanging_out_with_Lenin_outside_the_Petrozavodsk_agricultural_technical_school%2C_Karelia%2C_1_October_1941._%2850273836988%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "feed_image": "img/2026-10-01-daily.jpg"
     }
   ]
 }
