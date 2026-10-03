@@ -2490,6 +2490,19 @@
       "image_title": null,
       "image_url": null,
       "feed_image": null
+    },
+    {
+      "date_posted": "2026-10-03",
+      "kind": "daily",
+      "subject": null,
+      "ww2_date": "1941-10-03",
+      "topic": "Guderian's 4th Panzer Division captures Orel; Hitler Sportpalast speech, Oct 3 1941",
+      "telegram_caption": "<i>Немецкий танк Pz.III, провалившийся с мостика на дороге в России. Лето 1941 года, снимок иллюстративный.</i>\n\n<b>3 октября 1941</b>\n\nОрёл. По улицам ещё ходят трамваи, когда на окраину выходят танки 4-й танковой дивизии Гудериана.\n\nРывок занял всего три дня: около 200 километров по разбитым дорогам, мимо растерянных тыловых частей. Город на пути к Москве не был готов к обороне: немцы появились там, где их не ждали.\n\nВ тот же день в берлинском Спортпаласте Гитлер объявил, что «этот противник уже сломлен и больше никогда не поднимется». В Москве к таким заявлениям относились иначе: линия фронта трещала, и каждый час теперь был на счету.\n\nИтог дня: Орёл взят, подступы к Москве с юго-запада открыты, а берлинская пропаганда спешит объявить войну выигранной.",
+      "post_x": "October 3, 1941 — Guderian's 4th Panzer Division reaches Orel after a roughly 200 km dash in three days, with trams still running. In Berlin, Hitler declares the Soviet enemy 'already broken.' The southern approach to Moscow lies open.",
+      "image_pageid": 5452019,
+      "image_title": "File:Bundesarchiv B 145 Bild-F016208-0012, Russland, Eingebrochener Panzer III.jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/33/Bundesarchiv_B_145_Bild-F016208-0012%2C_Russland%2C_Eingebrochener_Panzer_III.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "feed_image": "img/2026-10-03-daily.jpg"
     }
   ]
 }
