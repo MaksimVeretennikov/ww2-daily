@@ -2542,6 +2542,19 @@
       "image_title": null,
       "image_url": null,
       "feed_image": null
+    },
+    {
+      "date_posted": "2026-10-05",
+      "kind": "daily",
+      "subject": null,
+      "ww2_date": "1941-10-05",
+      "topic": "Operation Typhoon: Soviet pilots spot a long German column on the Yukhnov-Maloyaroslavets road heading for Moscow, Oct 5 1941",
+      "telegram_caption": "<i>Немецкий танк Pz.38(t) в деревне на Восточном фронте. Осень 1941 года, иллюстративный кадр</i>\n\n<b>5 октября 1941</b>\n\nНад шоссе Юхнов — Малоярославец советские лётчики замечают то, чего в штабах ещё не ждут: колонну немецких танков, мотопехоты и артиллерии длиной в добрых два десятка километров, идущую прямо на Москву.\n\nДонесение звучит почти невероятно, и лётчикам сначала не поверили — потребовались повторные вылеты, прежде чем донесение дошло до командования.\n\nТем временем танковые группы «Тайфуна» смыкают кольцо: Гудериан рвётся к Брянску, а 4-я и 3-я танковые группы наступают на Вязьму.\n\nИтог дня: Москва впервые получает прямое подтверждение, что немецкий удар вышел на её ближние подступы.",
+      "post_x": "October 5, 1941 -- Soviet pilots spot a German armored column some 20 km long on the Yukhnov-Maloyaroslavets road, heading straight for Moscow, as Operation Typhoon's panzer groups close on Vyazma and Bryansk.",
+      "image_pageid": 5410617,
+      "image_title": "File:Bundesarchiv Bild 101I-265-0037-10, Russland, Panzer 38t.jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/07/Bundesarchiv_Bild_101I-265-0037-10%2C_Russland%2C_Panzer_38t.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "feed_image": "img/2026-10-05-daily.jpg"
     }
   ]
 }
