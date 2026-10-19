@@ -30,7 +30,7 @@ def _image_proxy(url: str) -> str:
 
 
 def is_enabled() -> bool:
-    return bool(config.BUFFER_WEBHOOK_URL)
+    return not config.TELEGRAM_ONLY and bool(config.BUFFER_WEBHOOK_URL)
 
 
 def post(text: str, image_url: str | None = None) -> dict:

@@ -68,7 +68,10 @@ def _flag(name: str, default: str = "0") -> bool:
     return os.environ.get(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 DRY_RUN = _flag("DRY_RUN")
-X_ENABLED = _flag("X_ENABLED")
+# Current publishing mode: Telegram only, including no RSS export to VK.
+# Explicitly set TELEGRAM_ONLY=0 to restore optional cross-posting.
+TELEGRAM_ONLY = _flag("TELEGRAM_ONLY", "1")
+X_ENABLED = _flag("X_ENABLED") and not TELEGRAM_ONLY
 
 # --- Secrets (read lazily by the modules that need them) ---------------------
 

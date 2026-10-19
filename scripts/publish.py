@@ -162,7 +162,7 @@ def main() -> None:
     # failure here must never lose the Telegram post that already went out,
     # so cross-posting is best-effort. ---
     x_result = {"skipped": "no_text"}
-    if draft.get("post_x"):
+    if draft.get("post_x") and not config.TELEGRAM_ONLY:
         # Prefer the standard-width thumbnail for X (full Commons originals
         # can exceed the platform's image size limit).
         image_url = commons.photo_url(chosen) if chosen else None
@@ -179,9 +179,9 @@ def main() -> None:
     # in that case VK gets the text without the photo caption line. ---
     # A community key cannot attach the photo, so its post must not open with
     # the caption of a picture nobody sees.
-    with_photo = image_path and vk.is_enabled() and vk.token_kind() == "user"
-    vk_text = caption if with_photo else _without_photo_caption(caption)
     try:
+        with_photo = image_path and vk.is_enabled() and vk.token_kind() == "user"
+        vk_text = caption if with_photo else _without_photo_caption(caption)
         vk_result = vk.post(vk_text, image_path) if vk.posts_enabled() \
             else {"skipped": "vk_disabled" if not vk.is_enabled() else "vk_mirror_polls"}
     except Exception as exc:
@@ -206,12 +206,14 @@ def main() -> None:
         record["vk_post_id"] = vk_result["post_id"]
     # --- RSS feed (VK imports it with the picture; see ww2daily/feed.py) ---
     if not config.DRY_RUN:
-        record["feed_image"] = feed.stage_image(image_path, record) \
-            if photo_sent else None
+        if not config.TELEGRAM_ONLY:
+            record["feed_image"] = feed.stage_image(image_path, record) \
+                if photo_sent else None
         data = state.append(record)
         print("Appended record to", config.STATE_PATH)
-        print("Feed rebuilt:", feed.write(data["posts"]),
-              "| image:", record["feed_image"])
+        if not config.TELEGRAM_ONLY:
+            print("Feed rebuilt:", feed.write(data["posts"]),
+                  "| image:", record["feed_image"])
     else:
         print("[DRY_RUN] would append:", json.dumps(record, ensure_ascii=False))
 

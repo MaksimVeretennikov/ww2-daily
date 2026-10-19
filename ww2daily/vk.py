@@ -37,7 +37,7 @@ class VKError(RuntimeError):
 
 
 def is_enabled() -> bool:
-    return bool(config.VK_ACCESS_TOKEN and config.VK_GROUP_ID)
+    return not config.TELEGRAM_ONLY and bool(config.VK_ACCESS_TOKEN and config.VK_GROUP_ID)
 
 
 def posts_enabled() -> bool:
