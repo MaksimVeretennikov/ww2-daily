@@ -3792,6 +3792,20 @@
       ],
       "correct_index": 3,
       "explanation": "Из Пятой: три коротких звука и один долгий совпадают с буквой V в азбуке Морзе. Этот ритм стал звуковым знаком кампании «V — значит победа»."
+    },
+    {
+      "date": "2026-10-29",
+      "ww2_date": "1941-10-29",
+      "theme": "Operation Gauntlet August 1941: Empress of Canada evacuates Soviet miners and families from Spitsbergen to Archangel",
+      "question": "В августе 1941 года союзники эвакуировали со Шпицбергена советских горняков и их семьи в Архангельск. Какой лайнер выполнил этот рейс в ходе операции «Гонтлет»?",
+      "options": [
+        "Empress of Australia",
+        "Empress of Russia",
+        "Empress of Canada",
+        "Empress of Asia"
+      ],
+      "correct_index": 2,
+      "explanation": "Это Empress of Canada. Доставив советских жителей в Архангельск, лайнер вернулся на Шпицберген за норвежцами и вывез их в Британию."
     }
   ]
 }
